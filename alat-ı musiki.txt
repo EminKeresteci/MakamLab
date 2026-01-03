@@ -1,0 +1,29 @@
+# 0   Acoustic Grand Piano
+# 4   Electric Piano 1 (Rhodes)
+# 6   Harpsichord (Klavsen)
+# 11  Vibraphone
+# 14  Tubular Bells (Çan)
+# 19  Church Organ (Kilise Orgu)
+
+# 24  Acoustic Guitar (Nylon / Klasik)
+# 25  Acoustic Guitar (Steel)
+# 26  Electric Guitar (Jazz)
+# 29  Overdriven Guitar (Elektro Rock)
+# 40  Violin (Keman)
+# 42  Cello (Viyolonsel)
+# 43  Contrabass
+# 46  Orchestral Harp (Arp)
+
+# 77  Shakuhachi (NEY sesine en yakını)
+# 75  Pan Flute
+# 73  Flute (Yan Flüt)
+# 71  Clarinet (Klarnet)
+# 68  Oboe (Obua)
+# 70  Bassoon (Fagot)
+# 74  Recorder (Blok Flüt)
+# 109 Bag pipe (Tulum benzeri)
+
+# 104 Sitar (Tanbur veya Ud niyetine kullanılabilir)
+# 105 Banjo (Cümbüş tınısını andırır)
+# 15  Dulcimer (Santur benzeri)
+# 116 Taiko Drum (Kudüm/Davul niyetine)

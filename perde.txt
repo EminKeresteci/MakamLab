@@ -1,0 +1,59 @@
+do,0,-1: kaba çargah
+do,1,-1: kaba dik çargah
+do,4,-1: kaba nim hicaz
+do,5,-1: kaba hicaz
+do,8,-1: kaba dik hicaz
+re,0,-1: yegâh
+re,1,-1: kaba dik yegâh
+re,4,-1: kaba nim hisar
+re,5,-1: kaba hisar
+re,8,-1: kaba dik hisar
+mi,0,-1: hüseyni aşiran
+mi,1,-1: dik hüseyni aşiran
+fa,0,-1: acem aşiran
+fa,1,-1: dik acem aşiran
+fa,4,-1: irak
+fa,5,-1: geveşt
+fa,8,-1: dik geveşt
+sol,0,0: rast
+sol,1,0: dik rast
+sol,4,0: nim zirgüle
+sol,5,0: zirgüle
+sol,8,0: dik zirgüle
+la,0,0: dügâh
+la,1,0: dik dügâh
+la,4,0: kürdi
+la,5,0: dik kürdi
+la,8,0: segâh
+si,0,0: buselik
+si,1,0: dik buselik
+do,0,0: çargah
+do,1,0: dik çargah
+do,4,0: nim hicaz
+do,5,0: hicaz
+do,8,0: dik hicaz
+re,0,0: neva
+re,1,0: dik neva
+re,4,0: nim hisar
+re,5,0: hisar
+re,8,0: dik hisar
+mi,0,0: hüseyni
+mi,1,0: dik hüseyni
+fa,0,0: acem
+fa,1,0: dik acem
+fa,4,0: evic
+fa,5,0: mahur
+fa,8,0: dik mahur
+sol,0,1: gerdaniye
+sol,1,1: dik gerdaniye
+sol,4,1: nim şehnaz
+sol,5,1: şehnaz
+sol,8,1: dik şehnaz
+la,0,1: muhayyer
+la,1,1: dik muhayyer
+la,4,1: sümbüle
+la,5,1: dik sümbüle
+la,8,1: tiz segâh
+si,0,1: tiz buselik
+si,1,1: tiz dik buselik
+do,0,1: tiz çargah
