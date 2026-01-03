@@ -115,8 +115,17 @@ class Nazariyat():
         esas_1, koma_1, oktav_1 = perde_1.split(",")
         esas_2, koma_2, oktav_2 = perde_2.split(",")
 
+        i_1 = self.fıtri_perdeler.index(esas_1)
+        i_2 = self.fıtri_perdeler.index(esas_2)
+        esas_fark = 0
+        if i_1 > i_2:
+            for i in range(i_2,i_1):
+                esas_fark += 4 if self.fıtri_perdeler[i] in self.yarım_perdeler[0] else 9
+        elif i_1 < i_2:
+            for i in range(i_2,i_1,-1):
+                esas_fark += -4 if self.fıtri_perdeler[i] in self.yarım_perdeler[1] else -9
 
-        return 53*(int(oktav_1)-int(oktav_2)) + int(koma_1) - int(koma_2)
+        return 53*(int(oktav_1)-int(oktav_2)) + esas_fark + int(koma_1) - int(koma_2)
 
     def perdelere(self, durak, alt, ust):
         perdeler = [durak]
@@ -129,7 +138,8 @@ class Nazariyat():
         komalar = []
         önceki_perde = perdeler[0]
         for perde in perdeler[1:]:
-            komalar.append(find_key(self.koma, self.koma_fark(perde, önceki_perde)))
+            komalar.append(find_key(self.koma, abs(self.koma_fark(perde, önceki_perde))))
+            önceki_perde = perde
         return komalar
 
     def cesniye(self, isim):
@@ -186,6 +196,8 @@ class Makam():
         for perde in self.perdeler:
             seslendir(perde, volume=volume, duration=duration, alet=alet, nazariyat=self.nazariyat)
 
+
+#Deprecated do not use
 class Perde():
     def __init__(self, isim=None, perde=None, koma=0, oktav=0, nazariyat=None):
         if nazariyat is None: self.nazariyat = Nazariyat()
