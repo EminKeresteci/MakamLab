@@ -49,7 +49,7 @@ class MusikiTusu(QPushButton):
 
         # Perdenin ismini (Rast, Dügah vb.) bulmak için Nazariyat'ın 'isme' fonksiyonunu kullanıyoruz.
         try:
-            perde_ismi = self.ana_pencere.nazariyat.isme(tam_perde)
+            perde_ismi = self.ana_pencere.nazariyat.perdeden_isme(tam_perde)
         except:
             perde_ismi = nota_adi
 

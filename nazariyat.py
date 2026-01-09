@@ -1,4 +1,15 @@
-def seslendir(perde, koma=0, oktav=0, volume=0.7, duration=1, alet=0, session=None, nazariyat=None):
+def seslendir(perde, koma=0, oktav=0, volume=0.7, duration=1, alet=0, session=None, nazariyat=None, print_midi=False):
+    """
+    :param perde:
+    :param koma:
+    :param oktav:
+    :param volume:
+    :param duration:
+    :param alet:
+    :param session:
+    :param nazariyat:
+    :return:
+    """
     if session is None:
         from scamp import Session
         session = Session()
@@ -21,7 +32,7 @@ def seslendir(perde, koma=0, oktav=0, volume=0.7, duration=1, alet=0, session=No
     koma_kesir = koma / tam
 
     midi = 55 + degerler[perde.lower()] + oktav*12 + koma_kesir
-    print(midi)
+    if print_midi: print(midi)
     instrument.play_note(midi, volume, duration)
     #TODO: perde doğruluğu
 
@@ -47,12 +58,9 @@ class Nazariyat():
     def __init__(self):
         import pandas as pd
 
-        with open("perde.txt", "r", encoding="utf-8") as f:
-            self. perde = pd.DataFrame([line.split(":") for line in f.read().splitlines()], columns=["perde", "isim"])
-        with open("cesni.txt", "r", encoding="utf-8") as f:
-            self.cesni = pd.DataFrame([line.split(":") for line in f.read().splitlines()], columns=["isim", "cesni"])
-        with open("dizi.txt", "r", encoding="utf-8") as f:
-            self.dizi = pd.DataFrame([line.split(":") for line in f.read().splitlines()], columns=["isim", "alt", "ust", "durak"])
+        self.perde = pd.read_csv("perde.txt", sep=":")
+        self.çeşni = pd.read_csv("çeşni.txt", sep=":")
+        self.dizi = pd.read_csv("dizi.txt", sep=":")
 
         self.fıtri_dizi = "TTBTTBT"
         self.fıtri_perdeler = ["sol", "la", "si", "do", "re", "mi", "fa"]
@@ -60,12 +68,12 @@ class Nazariyat():
         self.koma = {'b':4, 's':5, 'm':6, 'k':8, 't': 9, 'a':12,
                      '!':0, '%':1, '&':2, '/':3, '(':7, ')':10, '=':11} # normalde kullanılmayan koma değerleri
 
-    def isme(self, perde):
+    def perdeden_isme(self, perde):
         eslesme = self.perde.loc[self.perde["perde"] == perde, "isim"].values
         if len(eslesme) > 0: return eslesme[0]
         else:  raise ValueError("Perde bulunamadı!!!", perde)
 
-    def perdeye(self, isim):
+    def isimden_perdeye(self, isim):
         eslesme = self.perde.loc[self.perde["isim"].apply(tasfiye) == tasfiye(isim), "perde"].values
         if len(eslesme) > 0: return eslesme[0]
         else: raise ValueError("İsim bulunamadı!!!", isim)
@@ -127,31 +135,35 @@ class Nazariyat():
 
         return 53*(int(oktav_1)-int(oktav_2)) + esas_fark + int(koma_1) - int(koma_2)
 
-    def perdelere(self, durak, alt, ust):
+    def aralaıklardan_perdelere(self, durak, alt, üst):
         perdeler = [durak]
         for k in alt: perdeler.append(self.koma_ekle(perdeler[-1], self.koma[k.lower()]))
-        guclu = perdeler[-1]
-        for k in ust: perdeler.append(self.koma_ekle(perdeler[-1], self.koma[k.lower()]))
-        return guclu, perdeler
+        güçlü = perdeler[-1]
+        for k in üst: perdeler.append(self.koma_ekle(perdeler[-1], self.koma[k.lower()]))
+        return güçlü, perdeler
 
-    def aralıklara(self, perdeler):
-        komalar = []
-        önceki_perde = perdeler[0]
-        for perde in perdeler[1:]:
-            komalar.append(find_key(self.koma, abs(self.koma_fark(perde, önceki_perde))))
-            önceki_perde = perde
-        return komalar
+    def perdelerden_aralıklara(self, perdeler=None, isim=None):
+        if perdeler is not None:
+            komalar = []
+            önceki_perde = perdeler[0]
+            for perde in perdeler[1:]:
+                komalar.append(find_key(self.koma, abs(self.koma_fark(perde, önceki_perde))))
+                önceki_perde = perde
+            return komalar
+        elif isim is not None:
+            alt, üst, durak = self.dizi.loc[self.dizi["isim"].apply(tasfiye) == tasfiye(isim), ["alt", "üst", "durak"]].values[0]
+            return self.çeşni_bul(alt) + self.çeşni_bul(üst)
 
-    def cesniye(self, isim):
-        return self.cesni.loc[self.cesni["isim"].apply(tasfiye) == tasfiye(isim), "cesni"].values[0]
+    def çeşni_bul(self, isim):
+        return self.çeşni.loc[self.çeşni["isim"].apply(tasfiye) == tasfiye(isim), "çeşni"].values[0]
 
-    def diziye(self, isim):
+    def dizi_bul(self, isim):
         #TODO: yeden, seyr
-        alt, ust, durak = self.dizi.loc[self.dizi["isim"].apply(tasfiye) == tasfiye(isim), ["alt", "ust", "durak"]].values[0]
-        return self.perdelere(self.perdeye(durak), self.cesniye(alt), self.cesniye(ust))
+        alt, üst, durak = self.dizi.loc[self.dizi["isim"].apply(tasfiye) == tasfiye(isim), ["alt", "üst", "durak"]].values[0]
+        return self.aralaıklardan_perdelere(self.isimden_perdeye(durak), self.çeşni_bul(alt), self.çeşni_bul(üst))
 
 class Makam():
-    def __init__(self, isim="Rast", durak=None, guclu=None, aralıklar=None, perdeler=None, nazariyat=None):
+    def __init__(self, isim="Rast", durak=None, güçlü=None, yeden=None, seyir=None, aralıklar=None, perdeler=None, nazariyat=None):
         if nazariyat is None: self.nazariyat = Nazariyat()
         else: self.nazariyat = nazariyat
 
@@ -163,27 +175,28 @@ class Makam():
 
             if durak is None: self.durak = perdeler[0]
             elif durak in self.nazariyat.perde.perde.values: self.durak = durak
-            elif durak in self.nazariyat.perde.isim.values: self.durak = self.nazariyat.perdeye(durak)
+            elif durak in self.nazariyat.perde.isim.values: self.durak = self.nazariyat.isimden_perdeye(durak)
             elif durak in self.nazariyat.fıtri_perdeler: self.durak = durak + ",0,0"
             else: raise ValueError("Durak tanınamadı !!!")
 
-            if guclu is None: self.guclu = self.perdeler[4]
-            elif guclu in self.nazariyat.perde.perde.values: self.guclu = guclu
-            elif guclu in self.nazariyat.perde.isim.values: self.guclu = self.nazariyat.perdeye(guclu)
-            elif guclu in self.nazariyat.fıtri_perdeler: self.guclu = guclu + ",0,0"
+            if güçlü is None: self.güçlü = self.perdeler[4]
+            elif güçlü in self.nazariyat.perde.perde.values: self.güçlü = güçlü
+            elif güçlü in self.nazariyat.perde.isim.values: self.güçlü = self.nazariyat.isimden_perdeye(güçlü)
+            elif güçlü in self.nazariyat.fıtri_perdeler: self.güçlü = güçlü + ",0,0"
             else: raise ValueError("Güçlü tanınamadı !!!")
 
         elif perdeler is None and aralıklar is not None:
             self.aralıklar = aralıklar
-            if durak is None: self.durak = self.nazariyat.perdeye(isim)
-            self.guclu, self.perdeler = self.nazariyat.perdelere(self.durak, self.aralıklar)
+            if durak is None: self.durak = self.nazariyat.isimden_perdeye(isim)
+            self.güçlü, self.perdeler = self.nazariyat.aralaıklardan_perdelere(self.durak, self.aralıklar)
 
         elif perdeler is not None and aralıklar is None:
             self.perdeler = perdeler
-            self.durak, self.guclu, self.aralıklar = self.nazariyat.aralıklara(perdeler)
+            self.durak, self.güçlü, self.aralıklar = self.nazariyat.perdelerden_aralıklara(perdeler)
 
         else:
-            self.guclu, self.perdeler = self.nazariyat.diziye(isim)
+            self.güçlü, self.perdeler = self.nazariyat.dizi_bul(isim)
+            self.aralıklar = self.nazariyat.perdelerden_aralıklara(isim=isim)
 
         self.arıza = ""
 
@@ -192,9 +205,13 @@ class Makam():
             if int(koma)>0: self.arıza += f"{perde} {koma} koma diyez\n"
             elif int(koma)<0: self.arıza += f"{perde} {koma[1:]} koma bemol\n"
 
-    def seslendir(self, volume=0.7, duration=1, alet=0):
+    def seslendir(self, volume=0.7, duration=1, alet=0, print_midi=False):
         for perde in self.perdeler:
-            seslendir(perde, volume=volume, duration=duration, alet=alet, nazariyat=self.nazariyat)
+            seslendir(perde, volume=volume, duration=duration, alet=alet, nazariyat=self.nazariyat, print_midi=print_midi)
+
+    def taksim(self, volume=0.7, duration=1, alet=0):
+        #TODO:
+        self.seslendir(volume, duration, alet)
 
 
 #Deprecated do not use
@@ -203,15 +220,15 @@ class Perde():
         if nazariyat is None: self.nazariyat = Nazariyat()
 
         if perde is not None: self.perde = perde
-        else: self.perde = Nazariyat().perdeye(isim)
+        else: self.perde = Nazariyat().isimden_perdeye(isim)
 
         if isim is None: self.isim = isim
-        else: self.isim = Nazariyat().isme(perde)
+        else: self.isim = Nazariyat().perdeden_isme(perde)
 
     def seslendir(self, volume=0.7, duration=1, alet=0):
         seslendir(self.perde, volume=volume, duration=duration, alet=alet, nazariyat=self.nazariyat)
 
-class Cesni():
+class çeşni():
     def __init__(self, isim="Rast", perde="sol", mebde=None, uzunluk=5, sifre=None, perdeler=[], nazariyat=None):
         if mebde is None: self.mebde = isim.lower()
         if nazariyat is None: self.nazariyat = Nazariyat()

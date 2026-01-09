@@ -218,8 +218,8 @@ if __name__ == "__main__":
     if not os.path.exists("perde.txt"):
         with open("perde.txt", "w", encoding="utf-8") as f:
             f.write("sol,0,0: R a s t\nla,0,0: D ü g a h")
-    if not os.path.exists("cesni.txt"):
-        with open("cesni.txt", "w", encoding="utf-8") as f:
+    if not os.path.exists("çeşni.txt"):
+        with open("çeşni.txt", "w", encoding="utf-8") as f:
             f.write("Rast:sol,0,0-la,0,0")
 
     app = QApplication(sys.argv)

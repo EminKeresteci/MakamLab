@@ -1,3 +1,4 @@
+perde:isim
 do,0,-1: kaba çargah
 do,1,-1: kaba dik çargah
 do,4,-1: kaba nim hicaz

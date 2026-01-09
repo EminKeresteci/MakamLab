@@ -1,3 +1,4 @@
+isim:çeşni
 çargah,4:TTB
 çargah,5:TTBT
 buselik,4:TBT
