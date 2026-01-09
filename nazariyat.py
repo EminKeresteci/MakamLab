@@ -135,7 +135,7 @@ class Nazariyat():
 
         return 53*(int(oktav_1)-int(oktav_2)) + esas_fark + int(koma_1) - int(koma_2)
 
-    def aralaıklardan_perdelere(self, durak, alt, üst):
+    def aralıklardan_perdelere(self, durak, alt, üst):
         perdeler = [durak]
         for k in alt: perdeler.append(self.koma_ekle(perdeler[-1], self.koma[k.lower()]))
         güçlü = perdeler[-1]
@@ -158,9 +158,10 @@ class Nazariyat():
         return self.çeşni.loc[self.çeşni["isim"].apply(tasfiye) == tasfiye(isim), "çeşni"].values[0]
 
     def dizi_bul(self, isim):
-        #TODO: yeden, seyr
-        alt, üst, durak = self.dizi.loc[self.dizi["isim"].apply(tasfiye) == tasfiye(isim), ["alt", "üst", "durak"]].values[0]
-        return self.aralaıklardan_perdelere(self.isimden_perdeye(durak), self.çeşni_bul(alt), self.çeşni_bul(üst))
+        alt, üst, durak, yeden, güçlü, seyir = self.dizi.loc[self.dizi["isim"].apply(tasfiye) == tasfiye(isim), ["alt", "üst", "durak","yeden","güçlü","seyir"]].values[0]
+        alt, üst = self.çeşni_bul(alt), self.çeşni_bul(üst)
+        aralıklar = alt + üst
+        return self.aralıklardan_perdelere(self.isimden_perdeye(durak), alt, üst)[1], aralıklar, durak, yeden, güçlü, seyir
 
 class Makam():
     def __init__(self, isim="Rast", durak=None, güçlü=None, yeden=None, seyir=None, aralıklar=None, perdeler=None, nazariyat=None):
@@ -188,30 +189,41 @@ class Makam():
         elif perdeler is None and aralıklar is not None:
             self.aralıklar = aralıklar
             if durak is None: self.durak = self.nazariyat.isimden_perdeye(isim)
-            self.güçlü, self.perdeler = self.nazariyat.aralaıklardan_perdelere(self.durak, self.aralıklar)
+            self.güçlü, self.perdeler = self.nazariyat.aralıklardan_perdelere(self.durak, self.aralıklar)
 
         elif perdeler is not None and aralıklar is None:
             self.perdeler = perdeler
             self.durak, self.güçlü, self.aralıklar = self.nazariyat.perdelerden_aralıklara(perdeler)
 
         else:
-            self.güçlü, self.perdeler = self.nazariyat.dizi_bul(isim)
+            self.perdeler, self.aralıklar, self.durak, self.yeden, self.güçlü, self.seyir = self.nazariyat.dizi_bul(isim)
             self.aralıklar = self.nazariyat.perdelerden_aralıklara(isim=isim)
 
         self.arıza = ""
-
         for perde in self.perdeler:
             perde, koma, oktav = perde.split(",")
             if int(koma)>0: self.arıza += f"{perde} {koma} koma diyez\n"
             elif int(koma)<0: self.arıza += f"{perde} {koma[1:]} koma bemol\n"
 
+        self.seyir = seyir if seyir else seyir
+        self.yeden = yeden if yeden else yeden
+        self.güçlü = güçlü if güçlü else güçlü
+        self.durak = durak if durak else durak
+
     def seslendir(self, volume=0.7, duration=1, alet=0, print_midi=False):
         for perde in self.perdeler:
             seslendir(perde, volume=volume, duration=duration, alet=alet, nazariyat=self.nazariyat, print_midi=print_midi)
 
-    def taksim(self, volume=0.7, duration=1, alet=0):
-        #TODO:
-        self.seslendir(volume, duration, alet)
+    def taksim(self, başlangıç_perdesi=0, volume=0.7, duration=1, alet=0, uzunluk=20, ):
+        import random
+        c, i = 0, başlangıç_perdesi
+        while c < uzunluk if uzunluk else True:
+            seslendir(self.perdeler[i], volume=volume, duration=duration, alet=alet, nazariyat=self.nazariyat)
+            i += random.randint(-2,2) #TODO: seyir tabanlı perde geçişi
+            #TODO: bazı makamlar atlamayı sever, mesela Rast
+            i = 6 if i > 6 else i if i >= 0 else 0
+            c += 1
+
 
 
 #Deprecated do not use
