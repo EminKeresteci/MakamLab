@@ -1,23 +1,13 @@
-def seslendir(perde, koma=0, oktav=0, volume=0.7, duration=1, alet=0, session=None, nazariyat=None, print_midi=False):
-    """
-    :param perde:
-    :param koma:
-    :param oktav:
-    :param volume:
-    :param duration:
-    :param alet:
-    :param session:
-    :param nazariyat:
-    :return:
-    """
+def seslendir(perde, koma=0, oktav=0, volume=0.7, duration=1, alet=0, session=None, instrument=None, nazariyat=None, print_midi=False):
     if session is None:
         from scamp import Session
         session = Session()
     if nazariyat is None: nazariyat = Nazariyat()
-    import contextlib
-    import io
-    with contextlib.redirect_stdout(io.StringIO()):
-        instrument = session.new_part(preset=alet)
+
+    if instrument is None:
+        import contextlib, io
+        with contextlib.redirect_stdout(io.StringIO()):
+            instrument = session.new_part(preset=alet)
 
     degerler = {"sol": 0, "la": 2, "si": 4, "do": 5, "re": 7, "mi": 9, "fa": 10}
 
@@ -28,15 +18,44 @@ def seslendir(perde, koma=0, oktav=0, volume=0.7, duration=1, alet=0, session=No
     koma = int(koma)
     oktav = int(oktav)
 
-    tam = 4 if perde in nazariyat.yarım_perdeler[0 if koma > 0 else 1] else 9
-    koma_kesir = koma / tam
+    koma_kesir = koma * (12 / 53)
 
     midi = 55 + degerler[perde.lower()] + oktav*12 + koma_kesir
     if print_midi: print(midi)
-    instrument.play_note(midi, volume, duration)
-    #TODO: perde doğruluğu
+    import time
+    nota = instrument.start_note(midi, volume)
+    time.sleep(duration)
+    nota.end()
 
-    return session, nazariyat
+    return session, instrument, nazariyat
+
+
+def nota_baslat(perde, koma=0, oktav=0, volume=0.7, alet=0, session=None, instrument=None, nazariyat=None):
+    """Notayı başlatır ve bir NoteHandle döndürür. nota.end() ile kesilir."""
+    if session is None:
+        from scamp import Session
+        session = Session()
+    if nazariyat is None: nazariyat = Nazariyat()
+    if instrument is None:
+        import contextlib, io
+        with contextlib.redirect_stdout(io.StringIO()):
+            instrument = session.new_part(preset=alet)
+
+    degerler = {"sol": 0, "la": 2, "si": 4, "do": 5, "re": 7, "mi": 9, "fa": 10}
+
+    perde_parcalari = str(perde).split(",")
+    if len(perde_parcalari) == 3: perde, koma, oktav = perde_parcalari
+    elif len(perde_parcalari) == 2: perde, koma = perde_parcalari
+    else: perde = perde_parcalari[0]
+    koma = int(koma)
+    oktav = int(oktav)
+
+    koma_kesir = koma * (12 / 53)
+    midi = 55 + degerler[perde.lower()] + oktav * 12 + koma_kesir
+
+    nota = instrument.start_note(midi, volume)
+    return nota, session, instrument, nazariyat
+
 
 def tasfiye(ibare):
     if not ibare: return ""
@@ -49,10 +68,12 @@ def tasfiye(ibare):
 
     return str(ibare).lower().translate(tebdil_haritasi).strip().replace(" ","")
 
+
 def find_key(diz, value):
     for key, val in diz.items():
         if val == value:
             return key
+
 
 class Nazariyat():
     def __init__(self):
@@ -158,10 +179,12 @@ class Nazariyat():
         return self.çeşni.loc[self.çeşni["isim"].apply(tasfiye) == tasfiye(isim), "çeşni"].values[0]
 
     def dizi_bul(self, isim):
-        alt, üst, durak, yeden, güçlü, seyir = self.dizi.loc[self.dizi["isim"].apply(tasfiye) == tasfiye(isim), ["alt", "üst", "durak","yeden","güçlü","seyir"]].values[0]
+        try: alt, üst, durak, yeden, güçlü, seyir = self.dizi.loc[self.dizi["isim"].apply(tasfiye) == tasfiye(isim), ["alt", "üst", "durak","yeden","güçlü","seyir"]].values[0]
+        except IndexError: raise ValueError(f"{isim} makamı bulunamadı.")
         alt, üst = self.çeşni_bul(alt), self.çeşni_bul(üst)
         aralıklar = alt + üst
         return self.aralıklardan_perdelere(self.isimden_perdeye(durak), alt, üst)[1], aralıklar, durak, yeden, güçlü, seyir
+
 
 class Makam():
     def __init__(self, isim="Rast", durak=None, güçlü=None, yeden=None, seyir=None, aralıklar=None, perdeler=None, nazariyat=None):
@@ -205,24 +228,38 @@ class Makam():
             if int(koma)>0: self.arıza += f"{perde} {koma} koma diyez\n"
             elif int(koma)<0: self.arıza += f"{perde} {koma[1:]} koma bemol\n"
 
-        self.seyir = seyir if seyir else seyir
-        self.yeden = yeden if yeden else yeden
-        self.güçlü = güçlü if güçlü else güçlü
-        self.durak = durak if durak else durak
+        self.seyir = self.seyir if seyir is None else seyir
+        self.yeden = self.yeden if yeden is None else yeden
+        self.güçlü = self.güçlü if güçlü is None else güçlü
+        self.durak = self.durak if durak is None else durak
 
     def seslendir(self, volume=0.7, duration=1, alet=0, print_midi=False):
-        for perde in self.perdeler:
-            seslendir(perde, volume=volume, duration=duration, alet=alet, nazariyat=self.nazariyat, print_midi=print_midi)
+        import time
+        session, instrument, _ = seslendir(self.perdeler[0], volume=volume, duration=0.001, alet=alet, nazariyat=self.nazariyat)
+        i = self.perdeler.index(self.nazariyat.isimden_perdeye(self.güçlü))
+        for perde in self.perdeler[:i+1]:
+            seslendir(perde, volume=volume, duration=duration, alet=alet, session=session, instrument=instrument, nazariyat=self.nazariyat, print_midi=print_midi)
+        time.sleep(duration)
+        for perde in self.perdeler[i:]:
+            seslendir(perde, volume=volume, duration=duration, alet=alet, session=session, instrument=instrument, nazariyat=self.nazariyat, print_midi=print_midi)
 
     def taksim(self, başlangıç_perdesi=0, volume=0.7, duration=1, alet=0, uzunluk=20, ):
-        import random
         c, i = 0, başlangıç_perdesi
-        while c < uzunluk if uzunluk else True:
-            seslendir(self.perdeler[i], volume=volume, duration=duration, alet=alet, nazariyat=self.nazariyat)
-            i += random.randint(-2,2) #TODO: seyir tabanlı perde geçişi
-            #TODO: bazı makamlar atlamayı sever, mesela Rast
-            i = 6 if i > 6 else i if i >= 0 else 0
-            c += 1
+        try:
+            f = open(f"{self.isim}.pth", "r")
+            # load model
+            while c < uzunluk if uzunluk else True:
+                seslendir(self.perdeler[i], volume=volume, duration=duration, alet=alet, nazariyat=self.nazariyat)
+                # i = model(i)
+        except FileNotFoundError:
+            print(f"{self.isim} makamı için model dosyası bulunamadı")
+            import random
+            while c < uzunluk if uzunluk else True:
+                seslendir(self.perdeler[i], volume=volume, duration=duration, alet=alet, nazariyat=self.nazariyat)
+                i += random.randint(-2,2) #TODO: seyir tabanlı perde geçişi
+                #TODO: bazı makamlar atlamayı sever, mesela Rast
+                i = 6 if i > 6 else i if i >= 0 else 0
+                c += 1
 
 
 
@@ -239,6 +276,7 @@ class Perde():
 
     def seslendir(self, volume=0.7, duration=1, alet=0):
         seslendir(self.perde, volume=volume, duration=duration, alet=alet, nazariyat=self.nazariyat)
+
 
 class çeşni():
     def __init__(self, isim="Rast", perde="sol", mebde=None, uzunluk=5, sifre=None, perdeler=[], nazariyat=None):
