@@ -1,5 +1,5 @@
 isim:alt:üst:durak:yeden:seyir:güçlü:tiz
-Çargah:çargah,5:çargah,4:kabaçargah:buselik:çıkıcı:rast:
+Çargah:çargah,5:çargah,4:çargah:buselik:çıkıcı:gerdaniye:
 Buselik:buselik,5:hicaz,4:dügah:zirgüle:çıkıcı-inici:hüseyni:
 Kürdi:kürdi,4:buselik,5:dügah:rast:çıkıcı-inici:neva:
 Rast:rast,5:rast,4:rast:ırak:çıkıcı:neva:
@@ -17,7 +17,7 @@ Hüzzam:hüzzam,5:hicaz,4:segah:dügah:çıkıcı-inici:neva:
 Saba:saba,4:hicaz,5@3+hicaz,4@7:dügah:rast:çıkıcı-inici:çargah:şehnaz
 Nikriz:nikriz,5:rast,4:rast:ırak:çıkıcı-inici:neva:
 Mahur:çargah,5:çargah,4:rast:ırak:inici-çıkıcı:neva:
-Acemaşiran:çargah,5:çargah,4:acemaşiran:hüseyni:inici-çıkıcı:çargah:
+Acemaşiran:çargah,5:çargah,4:acemaşiran:hüseyni aşiran:inici-çıkıcı:çargah:
 Sultaniyegah:buselik,5:hicaz,4:yegah:kabanimhicaz:inici-çıkıcı:dügah:
 Kürdilihicazkar:kürdi,4:buselik,5:rast:acemaşiran:inici-çıkıcı:çargah:
 Ferahnak:segah,5:rast,4:segah:dügah:inici-çıkıcı:neva:
