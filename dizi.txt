@@ -37,3 +37,5 @@ Gülizar:hüseyni,5:uşşak,4:dügah:rast:inici-çıkıcı:neva:
 Hisar:hüseyni,5:uşşak,4:dügah:rast:çıkıcı-inici:hisar:
 Gerdaniye:rast,5:rast,4:rast:ırak:inici:gerdaniye:
 Arazbar:uşşak,4:buselik,5:dügah:rast:inici-çıkıcı:neva:
+Müstear:mustear,5+segah,5@1:hicaz,4:segah:kürdi:çıkıcı:neva:
+Evcara:hicaz,5:hicaz,4:ırak:acemaşiran:inici:evic:evic
