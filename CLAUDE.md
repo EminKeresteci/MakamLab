@@ -91,10 +91,27 @@ evîç bir çıkarım — ırak'ın oktavı olduğu için dizi 53 komaya kapanı
 aralıklar `stkssasb` = 5,9,8,5,5,12,5,4 hepsi meşru AEU aralığı. Bedeli
 şehnazın (58) ızgaraya düşmemesi; gerdaniye tuşuna Shift ile erişiliyor.
 
+**Aynı dereceye iki çeşni.** Müstear iki çeşniyi *birleştirir*, zincirlemez:
+`mustear,5+segah,5@1`. TDV Müstear'ı "segâh seyrine müstear çeşnisinin arada
+bir katılması" diye tarif ettiği için dizide hem çargâh (segâh beşlisinden)
+hem nim hicaz (müstear beşlisinden) bulunur — 8 dereceli bir dizi. Müstear'ı
+Segâh'tan ayıran perde budur; alt çeşniyi yalnız `segah,5` yapmak dizisini
+Segâh'la birebir aynı kılardı.
+
 `aralıklardan_perdelere(durak, *çeşniler, tiz=None)` her çeşniyi kendi
-demirinden zincirler, perdeleri `mutlak_koma`ya göre tekilleyip sıralar,
-`tiz`de kırpar. `Makam.aralıklar` artık `alt + üst` birleştirmesi değil,
-sıralı perde listesinden `perdelerden_aralıklara` ile türetilir.
+demirinden zincirler, perdeleri **her çeşniden sonra** `mutlak_koma`ya göre
+tekilleyip sıralar, `tiz`de kırpar. Sıralamanın her adımda yapılması şart:
+`@derece` artan listeye göre sayar, ekleme sırasına göre değil — birleştiren
+çeşnilerde ikisi ayrışıyor. `Makam.aralıklar` artık `alt + üst`
+birleştirmesi değil, sıralı perde listesinden `perdelerden_aralıklara` ile
+türetilir.
+
+### Adı olmayan perdeler
+`perde.txt` 53 konumun hepsini adlandırmaz, o yüzden 12 komalık artık ikili
+bazı transpozisyonlarda adlı perdeye denk gelmez. Üç yerde çıkıyor:
+`la,3,1` (Segâh, Hüzzam, Evîç, Ferahnâk, Müstear), `la,3,0` ve `fa,-1,0`
+(Evcârâ — hicaz dizisinin ırak'a göçürülmesinden). Perdenin *sesi* doğru,
+yalnız adı yok; tuşta nota adına düşülür. AEU'nun kendi çelişkisi, bkz. TODO.
 
 ## Bağımlılıklar
 
@@ -135,9 +152,9 @@ Satır kaydırması oktav alanına değil **komaya** bağlı. Makamların 36'sı
 ikisinde satırları 4 koma şaşırtırdı.
 
 Sütun 0'a `makam.yeden` konur, derece dizisinin bir alt basamağı (`derece = -1`)
-konmaz: 38 makamın 13'ünde bu ikisi ayrışıyor (Nihavend, Sabâ, Mahur, Hüzzam,
+konmaz: 40 makamın 15'inde bu ikisi ayrışıyor (Nihavend, Sabâ, Mahur, Hüzzam,
 Segâh, Acem, Bestenigâr, Şedaraban, Zinciran, Ferahnâk, Evîç, Bûselik,
-Zirgüleli Hicaz). Yeden bir derece basamağı değil, muayyen bir perdedir.
+Zirgüleli Hicaz, Müstear, Evcârâ). Yeden bir derece basamağı değil, muayyen bir perdedir.
 
 Bunun iki neticesi:
 - **Sütun hizası birebir**: Q sütun *c* = A sütun *c* + 1 oktav. Oktav atlaması aynı

@@ -192,17 +192,19 @@ class Nazariyat():
     def aralıklardan_perdelere(self, durak, *çeşniler, tiz=None):
         perdeler = [durak]
         güçlü = None
+        def sirala(liste):
+            tekil = {}
+            for p in liste: tekil.setdefault(self.mutlak_koma(p), p)
+            return [tekil[k] for k in sorted(tekil)]
+
         for çeşni in çeşniler:
             sifre, demir = çeşni if isinstance(çeşni, tuple) else (çeşni, 0)
             perde = perdeler[demir - 1] if demir else perdeler[-1]
             for k in sifre:
                 perde = self.koma_ekle(perde, self.koma[k.lower()])
-                if perde not in perdeler: perdeler.append(perde)
+                perdeler.append(perde)
+            perdeler = sirala(perdeler)
             if güçlü is None: güçlü = perdeler[-1]
-
-        tekil = {}
-        for perde in perdeler: tekil.setdefault(self.mutlak_koma(perde), perde)
-        perdeler = [tekil[k] for k in sorted(tekil)]
 
         if tiz is not None:
             sinir = self.mutlak_koma(tiz)
