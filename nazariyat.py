@@ -89,10 +89,29 @@ class Nazariyat():
         self.koma = {'b':4, 's':5, 'm':6, 'k':8, 't': 9, 'a':12,
                      '!':0, '%':1, '&':2, '/':3, '(':7, ')':10, '=':11} # normalde kullanılmayan koma değerleri
 
+        self.koma_degerleri = {"sol": 0, "la": 9, "si": 18, "do": 22,
+                               "re": 31, "mi": 40, "fa": 44}
+        self.komadan_isme = {}
+        for p, ad in zip(self.perde["perde"], self.perde["isim"]):
+            try:
+                self.komadan_isme.setdefault(self.mutlak_koma(p.strip()), ad)
+            except (KeyError, ValueError):
+                pass
+
+    def mutlak_koma(self, perde):
+        esas, koma, oktav = perde.split(",")
+        return (self.koma_degerleri[esas.strip().lower()]
+                + int(koma) + int(oktav) * 53)
+
     def perdeden_isme(self, perde):
         eslesme = self.perde.loc[self.perde["perde"] == perde, "isim"].values
         if len(eslesme) > 0: return eslesme[0]
-        else:  raise ValueError("Perde bulunamadı!!!", perde)
+        try:
+            ad = self.komadan_isme.get(self.mutlak_koma(perde))
+        except (KeyError, ValueError):
+            ad = None
+        if ad is not None: return ad
+        raise ValueError("Perde bulunamadı!!!", perde)
 
     def isimden_perdeye(self, isim):
         eslesme = self.perde.loc[self.perde["isim"].apply(tasfiye) == tasfiye(isim), "perde"].values
