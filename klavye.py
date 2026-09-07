@@ -454,23 +454,25 @@ class AnaPencere(QWidget):
         self.setFocus()
 
     def _derece_cetveli(self, perdeler):
-        # Bir oktavlık derece dizisi + oktavın kaç oktav birimi ettiği
-        oktav_adim = int(perdeler[-1].split(",")[2]) - int(perdeler[0].split(",")[2])
-        if oktav_adim == 0:
-            oktav_adim = 1
-        return perdeler[:-1], oktav_adim
+        cevrim = (self.nazariyat.mutlak_koma(perdeler[-1])
+                  - self.nazariyat.mutlak_koma(perdeler[0]))
+        if cevrim == 0:
+            cevrim = 53
+        return perdeler[:-1], cevrim
 
-    def _derece_perdesi(self, cetvel, oktav_adim, oktav, derece):
+    def _kaydir(self, perde, koma):
+        if koma == 0:
+            return perde
+        return self.nazariyat.koma_ekle(perde, koma)
+
+    def _derece_perdesi(self, cetvel, cevrim, oktav, derece):
         n = len(cetvel)
-        esas, koma, o = cetvel[derece % n].split(",")
-        return f"{esas},{koma},{int(o) + (oktav + derece // n) * oktav_adim}"
+        return self._kaydir(cetvel[derece % n], (oktav + derece // n) * cevrim)
 
-    def _sutun_perdesi(self, cetvel, oktav_adim, yeden_perde, oktav, sutun):
-        # Sütun 0 makamın kendi yedeni; ondan sonrası derece dizisi
+    def _sutun_perdesi(self, cetvel, cevrim, yeden_perde, oktav, sutun):
         if sutun == 0 and yeden_perde:
-            esas, koma, o = yeden_perde.split(",")
-            return f"{esas},{koma},{int(o) + oktav * oktav_adim}"
-        return self._derece_perdesi(cetvel, oktav_adim, oktav, sutun - DERECE_OFSET)
+            return self._kaydir(yeden_perde, oktav * cevrim)
+        return self._derece_perdesi(cetvel, cevrim, oktav, sutun - DERECE_OFSET)
 
     def makam_degisti(self):
         secilen = self.combo_makam.currentText()
@@ -480,7 +482,7 @@ class AnaPencere(QWidget):
             makam = Makam(isim=secilen, nazariyat=self.nazariyat)
             if not makam.perdeler:
                 return
-            cetvel, oktav_adim = self._derece_cetveli(makam.perdeler)
+            cetvel, cevrim = self._derece_cetveli(makam.perdeler)
             try:
                 gucu_base = perde_base(self.nazariyat.isimden_perdeye(makam.güçlü))
                 durak_base = perde_base(self.nazariyat.isimden_perdeye(makam.durak))
@@ -489,12 +491,12 @@ class AnaPencere(QWidget):
             try:
                 yeden_perde = self.nazariyat.isimden_perdeye(makam.yeden)
             except Exception:
-                yeden_perde = self._derece_perdesi(cetvel, oktav_adim, 0, -1)
+                yeden_perde = self._derece_perdesi(cetvel, cevrim, 0, -1)
             yeden_base = perde_base(yeden_perde)
 
             for tus in self.tus_sozlugu.values():
                 perde = self._sutun_perdesi(
-                    cetvel, oktav_adim, yeden_perde,
+                    cetvel, cevrim, yeden_perde,
                     tus.oktav + self.oktav_kaydirma, tus.derece)
                 pb = perde_base(perde)
                 if pb == durak_base:     rol = "durak"

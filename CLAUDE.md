@@ -39,11 +39,55 @@ midi = 55 + degerler[perde] + oktav * 12 + koma_kesir
 **Esas notalar (degerler):**
 `sol=0, la=2, si=4, do=5, re=7, mi=9, fa=10` (semitone offset from G3=MIDI 55)
 
+**Mutlak koma (saf 53-TET):**
+`sol=0, la=9, si=18, do=22, re=31, mi=40, fa=44`
+
+`Nazariyat.mutlak_koma(perde)` = `koma_degerleri[esas] + koma + oktav*53`.
+Aynı perdenin iki yazımı bu değerde birleşir: `la,8,0` ile `si,-1,0` ikisi de
+17 — ikisi de segâh. `perde.txt` arızalı perdeyi alttaki naturalden yukarı
+adlandırır (`la,8`), `çeşni.txt` ise üstteki naturalden aşağı üretir (`si,-1`).
+Bu yüzden `perdeden_isme` metin eşleşmesi tutmazsa `komadan_isme` indeksine
+düşer. Bu olmadan makamlarda kullanılan 38 perdenin 14'ü adsız kalıyordu.
+
+Not: `seslendir()` hâlâ naturalleri 12-TET, komaları 53-TET hesaplıyor
+(`degerler` + `koma*(12/53)`), yani icrada iki yazım 4 sent ayrışır. Bkz. TODO.
+
 ### Koma Şifreleri (çeşni.txt)
 `b=4, s=5, m=6, k=8, t=9, a=12` koma aralıkları
 
+Dörtlü 22, beşli 31 koma etmeli. İstisna: `saba,4:KSS` = 18 koma, otorite
+"eksik bir dörtlüdür" der, kasten öyle. `nişabur,5:MTST` = 29 koma ve `m`
+(6 koma) AEU'da hiç yok — kırık, ama hiçbir makamda kullanılmıyor.
+
 ### Makam Yapısı
-Her makam: alt çeşni (duraktan güçlüye) + üst çeşni (güçlüden tize)
+Her makam: alt çeşni (duraktan güçlüye) + üst çeşni (güçlüden tize).
+
+`dizi.txt` sütunları: `isim:alt:üst:durak:yeden:seyir:güçlü:tiz`
+
+**Demirlenmiş çeşni (`@derece`).** `üst` hücresi `+` ile birden fazla çeşni
+alır; her biri `@derece` ile hangi dereceye oturduğunu söyler (1'den sayılır,
+perde adı değil derece indisi — makam başka duraka transpoze edilirse
+bozulmasın). `@` yoksa çeşni bir öncekinin tepesinden zincirlenir, yani
+mevcut davranış.
+
+```
+Saba:saba,4:hicaz,5@3+hicaz,4@7:dügah:rast:çıkıcı-inici:çargah:şehnaz
+```
+
+Bu Sabâ için zaruri: TDV "sabâ dörtlüsü + **çargâhta** zirgüleli hicaz
+dizisi" diyor, çargâh ise Sabâ'nın 3'üncü derecesi (güçlüsü). Zincirleme
+kuralı üst çeşniyi alt çeşninin tepesinden (hicaz) başlattığı için 5. ve
+7. dereceler yanlış çıkıyordu (`dik neva` ve `mahur`; doğrusu `dik hisar`
+ve `gerdaniye`).
+
+**`tiz` sütunu** dizinin nerede kapandığını söyler; boşsa perde listesi
+kırpılmaz. Sabâ'da `şehnaz`, zira durak dügâh ile tiz durak şehnaz arası
+tam sekizli değildir (49 koma) — otorite de böyle diyor, kusur değil.
+
+`aralıklardan_perdelere(durak, *çeşniler, tiz=None)` her çeşniyi kendi
+demirinden zincirler, perdeleri `mutlak_koma`ya göre tekilleyip sıralar,
+`tiz`de kırpar. `Makam.aralıklar` artık `alt + üst` birleştirmesi değil,
+sıralı perde listesinden `perdelerden_aralıklara` ile türetilir.
 
 ## Bağımlılıklar
 
@@ -69,15 +113,19 @@ Z X C V B N M Ö Ç      ← −1 oktav
 kendi `oktav` ve sütun (`derece`) bilgisini taşır. `_sutun_perdesi()`:
 
 ```python
-cetvel = makam.perdeler[:-1]          # bir oktavlık derece dizisi, [0] = durak
+cetvel = makam.perdeler[:-1]          # bir çevrimlik derece dizisi, [0] = durak
+cevrim = mutlak_koma(perdeler[-1]) - mutlak_koma(perdeler[0])   # koma cinsinden
 n = len(cetvel)                       # tipik olarak 7
 if sutun == 0:                        # sütun 0 makamın kendi yedeni
-    perde = makam.yeden + oktav kaydırması
+    perde = koma_ekle(makam.yeden, oktav * cevrim)
 else:
     d = sutun - DERECE_OFSET          # DERECE_OFSET = 1
-    esas, koma, o = cetvel[d % n].split(",")
-    perde = f"{esas},{koma},{int(o) + (oktav + d // n) * oktav_adim}"
+    perde = koma_ekle(cetvel[d % n], (oktav + d // n) * cevrim)
 ```
+
+Satır kaydırması oktav alanına değil **komaya** bağlı. Makamların 36'sında
+`cevrim` 53'tür, ama Sabâ ve Bestenigâr'da 49 — oktav alanını artırmak bu
+ikisinde satırları 4 koma şaşırtırdı.
 
 Sütun 0'a `makam.yeden` konur, derece dizisinin bir alt basamağı (`derece = -1`)
 konmaz: 38 makamın 13'ünde bu ikisi ayrışıyor (Nihavend, Sabâ, Mahur, Hüzzam,

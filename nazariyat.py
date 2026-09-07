@@ -175,11 +175,40 @@ class Nazariyat():
 
         return 53*(int(oktav_1)-int(oktav_2)) + esas_fark + int(koma_1) - int(koma_2)
 
-    def aralıklardan_perdelere(self, durak, alt, üst):
+    def çeşni_çöz(self, hücre):
+        çözüm = []
+        if hücre is None or str(hücre).strip().lower() in ("", "nan"):
+            return çözüm
+        for parça in str(hücre).split("+"):
+            parça = parça.strip()
+            if not parça: continue
+            if "@" in parça:
+                ad, demir = parça.rsplit("@", 1)
+                çözüm.append((self.çeşni_bul(ad.strip()), int(demir)))
+            else:
+                çözüm.append((self.çeşni_bul(parça), 0))
+        return çözüm
+
+    def aralıklardan_perdelere(self, durak, *çeşniler, tiz=None):
         perdeler = [durak]
-        for k in alt: perdeler.append(self.koma_ekle(perdeler[-1], self.koma[k.lower()]))
-        güçlü = perdeler[-1]
-        for k in üst: perdeler.append(self.koma_ekle(perdeler[-1], self.koma[k.lower()]))
+        güçlü = None
+        for çeşni in çeşniler:
+            sifre, demir = çeşni if isinstance(çeşni, tuple) else (çeşni, 0)
+            perde = perdeler[demir - 1] if demir else perdeler[-1]
+            for k in sifre:
+                perde = self.koma_ekle(perde, self.koma[k.lower()])
+                if perde not in perdeler: perdeler.append(perde)
+            if güçlü is None: güçlü = perdeler[-1]
+
+        tekil = {}
+        for perde in perdeler: tekil.setdefault(self.mutlak_koma(perde), perde)
+        perdeler = [tekil[k] for k in sorted(tekil)]
+
+        if tiz is not None:
+            sinir = self.mutlak_koma(tiz)
+            perdeler = [p for p in perdeler if self.mutlak_koma(p) <= sinir]
+            if self.mutlak_koma(perdeler[-1]) < sinir: perdeler.append(tiz)
+
         return güçlü, perdeler
 
     def perdelerden_aralıklara(self, perdeler=None, isim=None):
@@ -191,18 +220,22 @@ class Nazariyat():
                 önceki_perde = perde
             return komalar
         elif isim is not None:
-            alt, üst, durak = self.dizi.loc[self.dizi["isim"].apply(tasfiye) == tasfiye(isim), ["alt", "üst", "durak"]].values[0]
-            return self.çeşni_bul(alt) + self.çeşni_bul(üst)
+            return "".join(self.perdelerden_aralıklara(perdeler=self.dizi_bul(isim)[0]))
 
     def çeşni_bul(self, isim):
         return self.çeşni.loc[self.çeşni["isim"].apply(tasfiye) == tasfiye(isim), "çeşni"].values[0]
 
     def dizi_bul(self, isim):
-        try: alt, üst, durak, yeden, güçlü, seyir = self.dizi.loc[self.dizi["isim"].apply(tasfiye) == tasfiye(isim), ["alt", "üst", "durak","yeden","güçlü","seyir"]].values[0]
+        try: alt, üst, durak, yeden, güçlü, seyir, tiz = self.dizi.loc[self.dizi["isim"].apply(tasfiye) == tasfiye(isim), ["alt", "üst", "durak","yeden","güçlü","seyir","tiz"]].values[0]
         except IndexError: raise ValueError(f"{isim} makamı bulunamadı.")
-        alt, üst = self.çeşni_bul(alt), self.çeşni_bul(üst)
-        aralıklar = alt + üst
-        return self.aralıklardan_perdelere(self.isimden_perdeye(durak), alt, üst)[1], aralıklar, durak, yeden, güçlü, seyir
+        çeşniler = self.çeşni_çöz(alt) + self.çeşni_çöz(üst)
+        tiz_perde = None
+        if tiz is not None and str(tiz).strip().lower() not in ("", "nan"):
+            tiz_perde = self.isimden_perdeye(str(tiz).strip())
+        perdeler = self.aralıklardan_perdelere(self.isimden_perdeye(durak),
+                                               *çeşniler, tiz=tiz_perde)[1]
+        aralıklar = "".join(self.perdelerden_aralıklara(perdeler=perdeler))
+        return perdeler, aralıklar, durak, yeden, güçlü, seyir
 
 
 class Makam():
