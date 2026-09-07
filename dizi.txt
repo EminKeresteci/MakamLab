@@ -32,7 +32,7 @@ Hicazkar:hicaz,5:hicaz,4:rast:ırak:inici:neva:
 Suzidil:buselik,5:hicaz,4:yegah:kabanimhicaz:inici-çıkıcı:dügah:
 Acem:çargah,5:çargah,4:dügah:rast:inici-çıkıcı:neva:
 Eviç:segah,5:hicaz,4:segah:dügah:inici:eviç:
-Bestenigar:saba,4:hicaz,5:ırak:rast:inici:neva:
+Bestenigar:irak,4:saba,4@3+hicaz,5@5:ırak:acemaşiran:inici:çargah:evic
 Gülizar:hüseyni,5:uşşak,4:dügah:rast:inici-çıkıcı:neva:
 Hisar:hüseyni,5:uşşak,4:dügah:rast:çıkıcı-inici:hisar:
 Gerdaniye:rast,5:rast,4:rast:ırak:inici:gerdaniye:
