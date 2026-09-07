@@ -84,6 +84,13 @@ ve `gerdaniye`).
 kırpılmaz. Sabâ'da `şehnaz`, zira durak dügâh ile tiz durak şehnaz arası
 tam sekizli değildir (49 koma) — otorite de böyle diyor, kusur değil.
 
+Bestenigâr da demirlenmiş: `irak,4:saba,4@3+hicaz,5@5`, durak ırak, güçlü
+çargâh, yeden acem aşiran, tiz **evîç**. Otorite Bestenigâr'a tiz durak
+vermez (mürekkeb makam, sekizliyle değil bileşenleri ve kararıyla tanımlı);
+evîç bir çıkarım — ırak'ın oktavı olduğu için dizi 53 komaya kapanıyor ve
+aralıklar `stkssasb` = 5,9,8,5,5,12,5,4 hepsi meşru AEU aralığı. Bedeli
+şehnazın (58) ızgaraya düşmemesi; gerdaniye tuşuna Shift ile erişiliyor.
+
 `aralıklardan_perdelere(durak, *çeşniler, tiz=None)` her çeşniyi kendi
 demirinden zincirler, perdeleri `mutlak_koma`ya göre tekilleyip sıralar,
 `tiz`de kırpar. `Makam.aralıklar` artık `alt + üst` birleştirmesi değil,
