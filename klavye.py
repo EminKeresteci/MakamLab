@@ -1,7 +1,7 @@
 import sys
 import threading
 from PySide6.QtWidgets import (QApplication, QWidget, QHBoxLayout, QVBoxLayout,
-                               QGridLayout, QPushButton, QLabel, QComboBox, QFrame)
+                               QPushButton, QLabel, QComboBox, QFrame)
 from PySide6.QtCore import Qt, QTimer, QSettings
 from PySide6.QtGui import QKeyEvent, QKeySequence, QShortcut
 from nazariyat import seslendir, nota_baslat, Nazariyat, Makam
@@ -12,23 +12,46 @@ from tema import TEMALAR
 # İzomorfik ızgara: satır = oktav, sütun = derece.
 # A satırı ana oktav; sütun 0 = yeden, sütun 1 = durak (DERECE_OFSET).
 IZGARA_SATIRLARI = [
-    (list("1234567890"),  2),
-    (list("QWERTYUIOP"),  1),
-    (list("ASDFGHJKL"),   0),
-    (list("ZXCVBNMÖÇ"), -1),
+    (list("1234567890"),   2),
+    (list("QWERTYUIOP"),   1),
+    (list("ASDFGHJKLŞİ"),  0),
+    (list("ZXCVBNMÖÇ."),  -1),
 ]
-NORMAL_OKTAVLAR = (1, 0)
+NORMAL_OKTAVLAR = (0,)
 IZGARA_SUTUN = max(len(h) for h, _ in IZGARA_SATIRLARI)
 DERECE_OFSET = 1  # sütun 0 yedene ayrıldı, dereceler bir sağa kaydı
+SANAL_TUS = {"Ş": 0xBA, "İ": 0xDE}
+SANAL_KODLAR = frozenset(SANAL_TUS.values())
+
+# Fizikî klavyenin çapraz kaçıklığı, tuş genişliği biriminde
+CAPRAZ_OFSET = {2: 0.0, 1: 0.5, 0: 0.75, -1: 1.25}
+DUZENLER = ("Çapraz", "Düz")
 
 KOMA_ADIM = 5  # Shift: +5 koma, Ctrl: -5 koma (basılı tutulduğu sürece)
 
 MIN_TUS_W = 56
 MIN_TUS_H = 64
-MAX_TUS_W = 95
-MAX_TUS_H = 110
+MAX_TUS_W = 124
+MAX_TUS_H = 152
+OLCEK_TUS_W = 95   # yazı ölçeğinin referansı, tuş boyu bundan büyüyünce yazı da büyür
+OLCEK_TUS_H = 110
 TUS_ARALIK = 6
 SATIR_ARALIK = 8
+
+
+def renk_kaydir(renk, oran):
+    h = renk.lstrip("#")
+    r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    if oran >= 0:
+        r, g, b = (min(255, int(k + (255 - k) * oran)) for k in (r, g, b))
+    else:
+        r, g, b = (max(0, int(k * (1 + oran))) for k in (r, g, b))
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def egim(renk, ust=0.12, alt=-0.16):
+    return (f"qlineargradient(x1:0,y1:0,x2:0,y2:1,"
+            f"stop:0 {renk_kaydir(renk, ust)},stop:1 {renk_kaydir(renk, alt)})")
 
 
 def perde_base(p):
@@ -54,8 +77,8 @@ class MusikiTusu(QPushButton):
         self.tam_perde = "sol,0,0"
         self.rol = "normal"
         self._basili = False
-        # Ölçek: normal modda (95x110) tam 1.0, büyük tuşlarda >1
-        self._olcek = min(w / MAX_TUS_W, h / MAX_TUS_H)
+        # Ölçek: 95x110 tuşta tam 1.0, büyük tuşlarda >1
+        self._olcek = min(w / OLCEK_TUS_W, h / OLCEK_TUS_H)
         self._stop_event = threading.Event()
         self._stop_event.set()
 
@@ -138,8 +161,10 @@ class MusikiTusu(QPushButton):
         else:                     bg, border = t["tus_bg"],   t["tus_kenar"]
         if self._koma():
             border = t["koma"]
-        return (f"QPushButton{{background-color:{bg};border:2px solid {border};border-radius:8px;}}"
-                f"QPushButton:hover{{background-color:{t['tus_hover']};}}")
+        return (f"QPushButton{{background:{egim(bg)};border:2px solid {border};"
+                f"border-radius:10px;}}"
+                f"QPushButton:hover{{background:{egim(t['tus_hover'], 0.16, -0.10)};"
+                f"border:2px solid {renk_kaydir(border, 0.22)};}}")
 
     def _basili_stil(self):
         t = self._t()
@@ -147,8 +172,8 @@ class MusikiTusu(QPushButton):
                   else t["durak_kenar"] if self.rol == "durak"
                   else t["gucu_kenar"] if self.rol == "gucu"
                   else t["yeden_kenar"] if self.rol == "yeden" else "#ffffff")
-        return (f"QPushButton{{background-color:{t['tus_basili']};"
-                f"border:3px solid {border};border-radius:8px;}}")
+        return (f"QPushButton{{background:{egim(t['tus_basili'], -0.12, 0.14)};"
+                f"border:3px solid {border};border-radius:10px;}}")
 
     def bas(self):
         self._basili = True
@@ -209,6 +234,9 @@ class AnaPencere(QWidget):
         self.aktif_enstruman = None
         self.aktif_alet_kodu = None
         self.aktif_tema = TEMALAR["Celik"]
+        self._aktif_makam = None
+        self._yukleniyor = False
+        self.aile_rozetleri = {}
         self._tam_ekran = False
         self.oktav_kaydirma = 0
         self.koma_kaydirma = 0
@@ -223,12 +251,16 @@ class AnaPencere(QWidget):
         self.enstrumanlar = {
             # Tuşlu
             "Piyano": 0, "Rhodes": 4, "Klavsen": 6, "Org": 19,
+            "Çelesta": 8, "Vibrafon": 11, "Elektro Org": 16, "Akordeon": 21,
             # Mızraplı
             "Ud": 24, "Tanbur": 104, "Kanun": 15, "Cümbüş": 105, "Harp": 46,
+            "Bağlama": 25, "Lavta": 26, "Kopuz": 32,
             # Yaylı
             "Keman": 40, "Viyola": 41, "Kemençe": 110,
+            "Çello": 42, "Kontrbas": 43, "Yaylı Takım": 48,
             # Nefesli
             "Ney": 77, "Flüt": 73, "Mıskal": 75, "Zurna": 68,
+            "Girift": 72, "Mey": 69, "Klarnet": 71, "Kaval": 74,
         }
 
         self._resize_timer = QTimer()
@@ -238,24 +270,38 @@ class AnaPencere(QWidget):
         self.ayarlar = QSettings("MakamNN", "SebekeMusiki")
 
         self.setup_ui()
+        self.resize(IZGARA_SUTUN * (MAX_TUS_W + TUS_ARALIK) + 40, MAX_TUS_H + 210)
         self._ayarlari_yukle()
         self._klavyeyi_kur()
 
     def _ayarlari_yukle(self):
+        self._yukleniyor = True
         tema = self.ayarlar.value("tema", "Celik")
         idx = self.combo_tema.findText(tema)
         if idx >= 0:
             self.combo_tema.setCurrentIndex(idx)
 
-        saz = self.ayarlar.value("saz", "Piyano (Grand)")
+        saz = self.ayarlar.value("saz", "Piyano")
         idx = self.combo_alet.findText(saz)
         if idx >= 0:
             self.combo_alet.setCurrentIndex(idx)
 
+        duzen = self.ayarlar.value("duzen", DUZENLER[0])
+        idx = self.combo_duzen.findText(duzen)
+        if idx >= 0:
+            self.combo_duzen.setCurrentIndex(idx)
+
         makam = self.ayarlar.value("makam", "Rast")
-        idx = self.combo_makam.findText(makam)
+        try:
+            temsilci = self.nazariyat.aile_temsilcisi(makam)
+        except Exception:
+            temsilci = makam
+        idx = self.combo_makam.findText(temsilci)
         if idx >= 0:
             self.combo_makam.setCurrentIndex(idx)
+        self._aktif_makam = makam if idx >= 0 else self.combo_makam.currentText()
+        self._aile_seridini_kur(self.combo_makam.currentText())
+        self._yukleniyor = False
 
     def meclis_kur(self):
         if self.daimi_meclis is None:
@@ -288,18 +334,24 @@ class AnaPencere(QWidget):
         ust_layout.setContentsMargins(0, 0, 0, 0)
         ust_layout.setSpacing(10)
 
-        self.lbl_alet = QLabel("Saz [Alt+I]:")
+        self.lbl_alet = QLabel("Saz:")
         self.combo_alet = QComboBox()
         self.combo_alet.addItems(self.enstrumanlar.keys())
         self.combo_alet.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.combo_alet.currentIndexChanged.connect(self._alet_degisti)
 
-        self.lbl_makam = QLabel("Makam [Alt+M]:")
+        self.lbl_makam = QLabel("Makam:")
         self.combo_makam = QComboBox()
         self.combo_makam.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         if self.nazariyat and hasattr(self.nazariyat, "dizi"):
-            self.combo_makam.addItems(self.nazariyat.dizi["isim"].tolist())
-        self.combo_makam.currentIndexChanged.connect(self.makam_degisti)
+            self.combo_makam.addItems(self.nazariyat.temsilciler_sirali())
+        self.combo_makam.currentIndexChanged.connect(self._temsilci_degisti)
+
+        self.aile_serit = QFrame()
+        self.aile_layout = QHBoxLayout(self.aile_serit)
+        self.aile_layout.setContentsMargins(0, 0, 0, 0)
+        self.aile_layout.setSpacing(4)
+        self.aile_rozetleri = {}
 
         self.lbl_tema = QLabel("Tema:")
         self.combo_tema = QComboBox()
@@ -307,10 +359,17 @@ class AnaPencere(QWidget):
         self.combo_tema.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.combo_tema.currentTextChanged.connect(self._tema_uygula)
 
+        self.lbl_duzen = QLabel("Düzen:")
+        self.combo_duzen = QComboBox()
+        self.combo_duzen.addItems(DUZENLER)
+        self.combo_duzen.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.combo_duzen.currentTextChanged.connect(self._duzen_degisti)
+
         ust_layout.addStretch()
         for w in [self.lbl_alet, self.combo_alet,
-                  self.lbl_makam, self.combo_makam,
-                  self.lbl_tema, self.combo_tema]:
+                  self.lbl_makam, self.combo_makam, self.aile_serit,
+                  self.lbl_tema, self.combo_tema,
+                  self.lbl_duzen, self.combo_duzen]:
             ust_layout.addWidget(w)
         ust_layout.addStretch()
 
@@ -323,7 +382,7 @@ class AnaPencere(QWidget):
         self.lbl_gucu_leg = QLabel("Guclu")
         self.lbl_oktav_leg = QLabel("Oktav 0")
         self.lbl_koma_leg = QLabel("Koma 0")
-        self.lbl_f11_leg = QLabel("[F11] Tam Ekran   [< >] Oktav   [Shift/Ctrl] ±5 Koma")
+        self.lbl_f11_leg = QLabel("[F11] Tam Ekran   [< >] Oktav   [Shift/Ctrl] ±5 Koma   [Alt+M] Makam   [Alt+I] Saz   [Alt+D] Düzen")
         leg_layout.addWidget(self.lbl_yeden_leg)
         leg_layout.addWidget(self.lbl_durak_leg)
         leg_layout.addWidget(self.lbl_gucu_leg)
@@ -344,6 +403,7 @@ class AnaPencere(QWidget):
             lambda: self.combo_makam.showPopup())
         QShortcut(QKeySequence("Alt+I"), self).activated.connect(
             lambda: self.combo_alet.showPopup())
+        QShortcut(QKeySequence("Alt+D"), self).activated.connect(self._duzen_cevir)
 
     def _tus_paneli_degistir(self, yeni):
         idx = self.ana_layout.indexOf(self.tus_paneli)
@@ -376,6 +436,18 @@ class AnaPencere(QWidget):
             kh = min(kh, MAX_TUS_H)
         return kw, max(MIN_TUS_H, kh)
 
+    def _capraz_mi(self):
+        return self.combo_duzen.currentText() == "Çapraz"
+
+    def _duzen_degisti(self, isim):
+        self.ayarlar.setValue("duzen", isim)
+        self._klavyeyi_kur()
+        self.setFocus()
+
+    def _duzen_cevir(self):
+        self.combo_duzen.setCurrentIndex(
+            (self.combo_duzen.currentIndex() + 1) % self.combo_duzen.count())
+
     def _klavyeyi_kur(self):
         self.tus_sozlugu.clear()
         satirlar = self._gorunur_satirlar()
@@ -386,18 +458,30 @@ class AnaPencere(QWidget):
         dis.setContentsMargins(0, 0, 0, 0)
         dis.addStretch()
 
-        izgara = QGridLayout()
-        izgara.setSpacing(TUS_ARALIK)
-        izgara.setContentsMargins(0, 0, 0, 0)
+        yigin = QVBoxLayout()
+        yigin.setSpacing(SATIR_ARALIK)
+        yigin.setContentsMargins(0, 0, 0, 0)
 
-        for r, (harfler, oktav) in enumerate(satirlar):
+        capraz = self._capraz_mi()
+        taban = min(CAPRAZ_OFSET.get(o, 0.0) for _, o in satirlar) if capraz else 0.0
+
+        for harfler, oktav in satirlar:
+            satir = QHBoxLayout()
+            satir.setSpacing(TUS_ARALIK)
+            satir.setContentsMargins(0, 0, 0, 0)
+            if capraz:
+                kacik = (CAPRAZ_OFSET.get(oktav, 0.0) - taban) * (kw + TUS_ARALIK)
+                if kacik >= 1:
+                    satir.addSpacing(int(kacik))
             for c, harf in enumerate(harfler):
                 tus = MusikiTusu(harf, kw, kh, ana_pencere=self,
                                  oktav=oktav, derece=c, parent=yeni)
-                izgara.addWidget(tus, r, c)
-                self.tus_sozlugu[Qt.Key(ord(harf))] = tus
+                satir.addWidget(tus)
+                self.tus_sozlugu[SANAL_TUS.get(harf, ord(harf))] = tus
+            satir.addStretch()
+            yigin.addLayout(satir)
 
-        dis.addLayout(izgara)
+        dis.addLayout(yigin)
         dis.addStretch()
         self._tus_paneli_degistir(yeni)
         self.makam_degisti()
@@ -419,9 +503,10 @@ class AnaPencere(QWidget):
             f"QComboBox QAbstractItemView{{background-color:{t['combo_bg']};color:{t['baslik']};}}"
         )
         lbl_stil = f"color:{t['baslik']};font-size:13px;font-weight:bold;"
-        for combo in [self.combo_alet, self.combo_makam, self.combo_tema]:
+        for combo in [self.combo_alet, self.combo_makam,
+                      self.combo_tema, self.combo_duzen]:
             combo.setStyleSheet(combo_stil)
-        for lbl in [self.lbl_alet, self.lbl_makam, self.lbl_tema]:
+        for lbl in [self.lbl_alet, self.lbl_makam, self.lbl_tema, self.lbl_duzen]:
             lbl.setStyleSheet(lbl_stil)
 
         self.lbl_yeden_leg.setStyleSheet(
@@ -439,6 +524,7 @@ class AnaPencere(QWidget):
             f"border:1px solid {t['tus_kenar']};padding:2px 8px;border-radius:4px;")
         self.lbl_f11_leg.setStyleSheet(f"color:{t['perde']};font-size:11px;")
         self._koma_legendasi()
+        self._rozetleri_boya()
         self.ayarlar.setValue("tema", isim)
 
         for tus in self.tus_sozlugu.values():
@@ -474,8 +560,55 @@ class AnaPencere(QWidget):
             return self._kaydir(yeden_perde, oktav * cevrim)
         return self._derece_perdesi(cetvel, cevrim, oktav, sutun - DERECE_OFSET)
 
+    def _aile_uyeleri(self, temsilci):
+        try:
+            return self.nazariyat.makam_aileleri().get(temsilci, [temsilci])
+        except Exception:
+            return [temsilci]
+
+    def _aile_seridini_kur(self, temsilci):
+        for rozet in self.aile_rozetleri.values():
+            self.aile_layout.removeWidget(rozet)
+            rozet.deleteLater()
+        self.aile_rozetleri = {}
+        üyeler = self._aile_uyeleri(temsilci)
+        self.aile_serit.setHidden(len(üyeler) < 2)
+        if len(üyeler) < 2:
+            return
+        for isim in üyeler:
+            rozet = QPushButton(isim)
+            rozet.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            rozet.setCursor(Qt.CursorShape.PointingHandCursor)
+            rozet.clicked.connect(lambda _=False, i=isim: self._aile_uyesi_sec(i))
+            self.aile_layout.addWidget(rozet)
+            self.aile_rozetleri[isim] = rozet
+        self._rozetleri_boya()
+
+    def _rozetleri_boya(self):
+        t = self.aktif_tema
+        for isim, rozet in self.aile_rozetleri.items():
+            aktif = isim == self._aktif_makam
+            kenar = t["gucu_kenar"] if aktif else t["tus_kenar"]
+            renk = t["gucu_nota"] if aktif else t["perde"]
+            rozet.setStyleSheet(
+                f"QPushButton{{background-color:{t['combo_bg']};color:{renk};"
+                f"border:1px solid {kenar};border-radius:5px;padding:4px 8px;"
+                f"font-size:12px;font-weight:{'bold' if aktif else 'normal'};}}"
+                f"QPushButton:hover{{border:1px solid {t['gucu_kenar']};}}")
+
+    def _temsilci_degisti(self):
+        temsilci = self.combo_makam.currentText()
+        self._aktif_makam = temsilci
+        self._aile_seridini_kur(temsilci)
+        self.makam_degisti()
+
+    def _aile_uyesi_sec(self, isim):
+        self._aktif_makam = isim
+        self._rozetleri_boya()
+        self.makam_degisti()
+
     def makam_degisti(self):
-        secilen = self.combo_makam.currentText()
+        secilen = self._aktif_makam or self.combo_makam.currentText()
         if not secilen or not self.tus_sozlugu:
             return
         try:
@@ -506,7 +639,8 @@ class AnaPencere(QWidget):
                 tus.tusu_kur(perde, rol)
         except Exception as e:
             print(f"Makam teskilati hatasi: {e}")
-        self.ayarlar.setValue("makam", self.combo_makam.currentText())
+        if not self._yukleniyor:
+            self.ayarlar.setValue("makam", secilen)
         self.setFocus()
 
     def _oktav_kaydir(self, adim):
@@ -562,6 +696,12 @@ class AnaPencere(QWidget):
         self._koma_kaydir(0)
         super().focusOutEvent(event)
 
+    def _tus_bul(self, event: QKeyEvent):
+        vk = event.nativeVirtualKey()
+        if vk in SANAL_KODLAR:
+            return self.tus_sozlugu.get(vk)
+        return self.tus_sozlugu.get(int(event.key()))
+
     def keyPressEvent(self, event: QKeyEvent):
         self._koma_kaydir(self._koma_hesapla(event, True))
         key = event.key()
@@ -578,16 +718,17 @@ class AnaPencere(QWidget):
         if key == Qt.Key.Key_Greater:
             self._oktav_kaydir(1)
             return
-        if key in self.tus_sozlugu and not event.isAutoRepeat():
-            self.tus_sozlugu[key].bas()
+        tus = self._tus_bul(event)
+        if tus is not None and not event.isAutoRepeat():
+            tus.bas()
         else:
             super().keyPressEvent(event)
 
     def keyReleaseEvent(self, event: QKeyEvent):
         self._koma_kaydir(self._koma_hesapla(event, False))
-        key = event.key()
-        if key in self.tus_sozlugu and not event.isAutoRepeat():
-            self.tus_sozlugu[key].birak()
+        tus = self._tus_bul(event)
+        if tus is not None and not event.isAutoRepeat():
+            tus.birak()
         else:
             super().keyReleaseEvent(event)
 

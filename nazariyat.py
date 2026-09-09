@@ -69,6 +69,20 @@ def tasfiye(ibare):
     return str(ibare).lower().translate(tebdil_haritasi).strip().replace(" ","")
 
 
+MAKAM_ONCELIK = ("Saba", "Uşşak", "Rast", "Segah", "Hicaz")
+AILE_ONCELIK = MAKAM_ONCELIK + ("Hüseyni", "Kürdi", "Sultaniyegah")
+TR_ALFABE = "abcçdefgğhıijklmnoöprsştuüvyzqwx"
+
+
+def tr_anahtar(ibare):
+    return [TR_ALFABE.find(h) if h in TR_ALFABE else len(TR_ALFABE)
+            for h in str(ibare).lower()]
+
+
+def tr_sirala(isimler):
+    return sorted(isimler, key=tr_anahtar)
+
+
 def find_key(diz, value):
     for key, val in diz.items():
         if val == value:
@@ -91,6 +105,7 @@ class Nazariyat():
 
         self.koma_degerleri = {"sol": 0, "la": 9, "si": 18, "do": 22,
                                "re": 31, "mi": 40, "fa": 44}
+        self._aileler = None
         self.komadan_isme = {}
         for p, ad in zip(self.perde["perde"], self.perde["isim"]):
             try:
@@ -238,6 +253,41 @@ class Nazariyat():
                                                *çeşniler, tiz=tiz_perde)[1]
         aralıklar = "".join(self.perdelerden_aralıklara(perdeler=perdeler))
         return perdeler, aralıklar, durak, yeden, güçlü, seyir
+
+    def makam_sirasi(self):
+        isimler = [str(i) for i in self.dizi["isim"]]
+        oncelik = [i for i in MAKAM_ONCELIK if i in isimler]
+        return oncelik + tr_sirala(i for i in isimler if i not in oncelik)
+
+    def dizi_imzasi(self, makam):
+        return tuple(self.mutlak_koma(p) for p in makam.perdeler)
+
+    def makam_aileleri(self):
+        if self._aileler is None:
+            oncelik = {isim: i for i, isim in enumerate(AILE_ONCELIK)}
+            anahtar = lambda i: (oncelik.get(i, len(oncelik)), tr_anahtar(i))
+            imzalar = {}
+            for isim in self.makam_sirasi():
+                try:
+                    imza = self.dizi_imzasi(Makam(isim, nazariyat=self))
+                except Exception:
+                    imza = (isim,)
+                imzalar.setdefault(imza, []).append(isim)
+            self._aileler = {}
+            for üyeler in imzalar.values():
+                sirali = sorted(üyeler, key=anahtar)
+                self._aileler[sirali[0]] = sirali
+        return self._aileler
+
+    def aile_temsilcisi(self, isim):
+        for temsilci, üyeler in self.makam_aileleri().items():
+            if isim in üyeler:
+                return temsilci
+        return isim
+
+    def temsilciler_sirali(self):
+        aileler = self.makam_aileleri()
+        return [i for i in self.makam_sirasi() if i in aileler]
 
 
 class Makam():
