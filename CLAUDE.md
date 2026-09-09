@@ -129,8 +129,8 @@ numpy        # sayısal hesaplar (fft.py vb.)
 ```
 1 2 3 4 5 6 7 8 9 0    ← +2 oktav
 Q W E R T Y U I O P    ← +1 oktav
-A S D F G H J K L      ← ana oktav (A = YEDEN, S = DURAK, her makamda sabit)
-Z X C V B N M Ö Ç      ← −1 oktav
+A S D F G H J K L Ş İ  ← ana oktav (A = YEDEN, S = DURAK, her makamda sabit)
+Z X C V B N M Ö Ç .    ← −1 oktav
 ```
 
 `IZGARA_SATIRLARI` sabitinde `(harfler, oktav_ofseti)` çiftleri tutulur. Her tuş
@@ -152,18 +152,41 @@ Satır kaydırması oktav alanına değil **komaya** bağlı. Makamların 36'sı
 ikisinde satırları 4 koma şaşırtırdı.
 
 Sütun 0'a `makam.yeden` konur, derece dizisinin bir alt basamağı (`derece = -1`)
-konmaz: 40 makamın 15'inde bu ikisi ayrışıyor (Nihavend, Sabâ, Mahur, Hüzzam,
-Segâh, Acem, Bestenigâr, Şedaraban, Zinciran, Ferahnâk, Evîç, Bûselik,
-Zirgüleli Hicaz, Müstear, Evcârâ). Yeden bir derece basamağı değil, muayyen bir perdedir.
+konmaz: 40 makamın 12'sinde bu ikisi ayrışıyor (Nihavend, Segâh, Hüzzam, Sabâ,
+Mahur, Ferahnâk, Zinciran, Acem, Evîç, Hisar, Müstear, Evcârâ). Yeden bir derece
+basamağı değil, muayyen bir perdedir.
 
 Bunun iki neticesi:
 - **Sütun hizası birebir**: Q sütun *c* = A sütun *c* + 1 oktav. Oktav atlaması aynı
   parmağın bir satır yukarısı.
-- **Satır oktavdan uzun** (9-10 tuş, 7 derece), artan tuşlar üst oktavın ilk
+- **Satır oktavdan uzun** (10-11 tuş, 7 derece), artan tuşlar üst oktavın ilk
   derecelerine taşar; satır değiştirmeden kısa geçiş yapılabilir.
 
-- Normal modda `NORMAL_OKTAVLAR` satırları gösterilir (Q ve A satırı, 19 tuş)
-- F11 tam ekranda 4 satır, 38 tuş
+**Türkçe Q'ya has tuşlar.** Ana satır `L`'den sonra `Ş` ve `İ` ile, alt satır
+`Ç`'den sonra `.` ile devam eder. Tuşlar `tus_sozlugu`'nda `ord(harf)` ile
+adreslenir, ama iki tuşta bu tutmaz ve `SANAL_TUS` sözlüğü sanal tuş koduna
+(`nativeVirtualKey`) düşer:
+
+| Tuş | Sorun | Anahtar |
+|---|---|---|
+| `Ş` | Qt `0x15E` verir, `Qt.Key` üyesi değil | VK `0xBA` |
+| `İ` | `'i'`nin Unicode büyüğü `I`, yani üst satırdaki `ı` tuşuyla aynı kod | VK `0xDE` |
+
+`.` tuşunda sorun yok: Türkçe Q'da VK `0xBE`, karakteri `.`, Qt `Key_Period`
+(`0x2E`) verir. `Ö` (`0xD6`) ve `Ç` (`0xC7`) Latin-1'de oldukları için zaten
+`ord` ile tutuyordu. `_tus_bul()` evvela sanal kodu, sonra `key()`'i dener.
+
+- Normal (başlangıç) modda yalnız ana satır gösterilir (`NORMAL_OKTAVLAR = (0,)`,
+  11 tuş). Pencere açılışta `IZGARA_SUTUN * (MAX_TUS_W + TUS_ARALIK) + 40` genişliğe
+  kurulur (1470 px), tuşlar 124x142'ye çıkar
+- F11 tam ekranda 4 satır, 41 tuş
+- **Çapraz / Düz düzen** (`combo_duzen`, `Alt+D`, QSettings `duzen`). Çaprazda her
+  satır `CAPRAZ_OFSET`'e göre sağa kaçar: `{2: 0.0, 1: 0.5, 0: 0.75, -1: 1.25}` tuş
+  genişliği birimiyle, yani fizikî klavyenin kaçıklığı (124 px tuşta 0, 65, 97, 162
+  px). Düzde bütün satırlar hizalı. Izgara `QGridLayout` değil, satır başına bir
+  `QHBoxLayout`; kaçıklık baştaki `addSpacing` ile verilir
+- Yazı ölçeği `OLCEK_TUS_W/H` (95x110) referansına göre, `MAX_TUS_W/H`'ye göre değil;
+  tuş büyüdükçe yazı da büyür (124x142'de ölçek 1.29)
 - Tuş boyutu `_tus_olcusu()` ile pencereye göre ölçeklenir; tam ekranda `MAX_TUS_W`
   üst sınırı uygulanmaz
 
@@ -174,6 +197,7 @@ Bunun iki neticesi:
 - `Ctrl` (basılı): bütün perdeleri **−5 koma**
 - `Alt+M`: Makam dropdown
 - `Alt+I`: Saz dropdown
+- `Alt+D`: Çapraz / düz düzen arasında geçiş
 
 Ctrl musikî kaydırmasına ayrıldığı için dropdown kısayolları `Alt`'a taşındı;
 aksi halde `Ctrl+M` ve `Ctrl+I` iki notayı yutuyordu.
@@ -203,24 +227,62 @@ gerçek perde adı çıkar (rast→zirgûle, çargâh→hicaz, neva→hisar), `�
 Roller `perde_base()` ile (oktav yok sayılarak) eşleştiği için her oktavda
 işaretlenir; sütun 0 dışındaki bir tuş da yedene denk gelirse yeşil yanar.
 
-### Bilinen veri kusuru
-`dizi.txt:14` — Nihavend'in yedeni `rast` yazılmış, durağı da `rast`. Bu yüzden
-A ile S aynı perdeye düşen tek makam odur; yeden `ırak` olmalı.
+### Makam sırası ve aileleri
+`nazariyat.py`'de:
+- `MAKAM_ONCELIK = ("Saba", "Uşşak", "Rast", "Segah", "Hicaz")` — dropdown sırası;
+  kalanı `tr_sirala` ile Türk alfabesine göre (`locale` yerine harf haritası, zira
+  Windows'ta `locale.strxfrm` güvenilmez).
+- `dizi_imzasi(makam)` perdelerin **mutlak koma** dizisini verir; `makam_aileleri()`
+  aynı imzayı paylaşanları gruplar, ilk çağrıda hesaplanıp saklanır (40 `Makam`
+  nesnesi 0.11 sn). Temsilci `AILE_ONCELIK`'e göre, yoksa alfabetik ilk.
+
+Dört aile var, 12 makam; 28 makam tek başına, dropdown 32 satır:
+
+| Temsilci | Üyeler |
+|---|---|
+| Hüseyni | Gerdaniye, Gülizar, Muhayyer, Neva |
+| Uşşak | Arazbar, Bayati |
+| Hicaz | Uzzal |
+| Kürdi | Muhayyerkürdi |
+
+Aile üyeleri **perdede değil güçlüde ve seyirde** ayrışır. Klavyede combonun yanında
+rozet olarak dizilirler; rozete basmak ızgarayı yeniden kurmaz, yalnız rollerini
+tazeler. QSettings `makam` fiilî üyeyi tutar, açılışta temsilcisi combo'ya kurulur.
+
+Rol eşleşmesi `perde_base()` ile oktav yok sayılarak yapıldığı için iki çakışma var:
+Muhayyer ve Muhayyerkürdî'nin güçlüsü durağın oktavı olduğundan turuncu hiç yanmaz
+(mavi durak kazanır), Gerdâniye'de ise güçlü (gerdaniye) ile yeden (rast) aynı tabana
+düştüğü için yeşil yeden görünmez.
+
+### Bilinen veri kusurları
+- **Ferahnâk**: kaynak güçlüyü `neva` veriyor, ama durak `ırak` olunca neva dizide
+  bulunmuyor; kaynağın kendi ikinci ihtimali olan `evic` yazıldı. Dizinin kuruluşu
+  (`ferahnak,5:rast,4`) gözden geçirilmeli, muhtemelen `@derece` demiri gerekiyor.
+- **Acem**: dosya `çargah,5:çargah,4`'ü dügâh'a koyup dügâh'ta majör bir dizi
+  üretiyor; kaynak "acem perdesinde çargâh beşlisi + beyâtî" diyor, yani Beyâtî
+  ailesinden olmalı. Güçlüsü de bu yüzden `acem` yapılamadı (dizide yok).
+- **Hisar**: kaynak "hüseynî üzerinde zirgüleli hicaz" diyor; bir sekizliye ancak
+  dörtlüsü sığdığı için `hicaz,4` alındı — bu bir çıkarım.
 
 ### Tema sistemi
-`TEMALAR` sözlüğünde tanımlı: Celik, Kehribar, Lacivert, Krem.
+`TEMALAR` sözlüğünde tanımlı: Celik, Kehribar, Lacivert, Krem, Zümrüt, Gül,
+Mürekkep, Sedef. Krem ve Sedef açık, ötekiler koyu.
 Her tema: pencere, tuş, hover, basılı, durak, güçlü, koma renkleri.
 
 ## klavye.py Enstrümanlar
 
 | Kategori | İsim | GM MIDI |
 |---|---|---|
-| Tuşlu | Piyano, Rhodes, Klavsen, Org | 0, 4, 6, 19 |
-| Mızraplı | Ud, Tanbur, Kanun, Cümbüş, Harp | 24, 104, 15, 105, 46 |
-| Yaylı | Keman, Viyola, Kemençe | 40, 41, 110 |
-| Nefesli | Ney, Flüt, Mıskal, Zurna | 77, 73, 75, 68 |
+| Tuşlu | Piyano, Rhodes, Klavsen, Org, Çelesta, Vibrafon, Elektro Org, Akordeon | 0, 4, 6, 19, 8, 11, 16, 21 |
+| Mızraplı | Ud, Tanbur, Kanun, Cümbüş, Harp, Bağlama, Lavta, Kopuz | 24, 104, 15, 105, 46, 25, 26, 32 |
+| Yaylı | Keman, Viyola, Kemençe, Çello, Kontrbas, Yaylı Takım | 40, 41, 110, 42, 43, 48 |
+| Nefesli | Ney, Flüt, Mıskal, Zurna, Girift, Mey, Klarnet, Kaval | 77, 73, 75, 68, 72, 69, 71, 74 |
 
-Not: Ud=24 (Nylon Guitar), Tanbur=104 (Sitar), Kanun=15 (Dulcimer), Kemençe=110 (Fiddle), Ney=77 (Shakuhachi), Mıskal=75 (Pan Flute), Zurna=68 (Oboe) en yakın GM karşılıkları.
+Not: Hepsi en yakın GM karşılığı — Ud=24 (Nylon Guitar), Tanbur=104 (Sitar),
+Kanun=15 (Dulcimer), Kemençe=110 (Fiddle), Ney=77 (Shakuhachi), Mıskal=75 (Pan
+Flute), Zurna=68 (Oboe), Bağlama=25 (Steel Guitar), Lavta=26 (Jazz Guitar),
+Kopuz=32 (Acoustic Bass), Girift=72 (Piccolo), Mey=69 (English Horn), Kaval=74
+(Recorder). Hiçbir iki saz aynı presete düşmüyor.
 
 
 ### Temel Perde (Pitch Base) İnceleme
@@ -237,7 +299,7 @@ Mevcut taban: `midi = 55 + ...` → MIDI 55 = G3 = 196 Hz. Bu bazı makamlar iç
 - [ ] Seyir tipine göre grupla veya kullanıcı favorileri öne çıkar
 
 ### Oktav Navigasyonu
-Tam ekranda 38 tuş sabit; bazı makamlar daha geniş aralık gerektirebilir.
+Tam ekranda 41 tuş sabit; bazı makamlar daha geniş aralık gerektirebilir.
 
 - [x] Klavyeyi oktav kaydıran `<` / `>` kısayolu
 - [x] Aktif oktav kaydırmasını legendada göster (`lbl_oktav_leg`)
