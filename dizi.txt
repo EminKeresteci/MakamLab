@@ -11,18 +11,18 @@ Uzzal:hicaz,5:uşşak,4:dügah:rast:çıkıcı-inici:hüseyni:
 ZirgüleliHicaz:hicaz,5:hicaz,4:dügah:nim zirgüle:inici-çıkıcı:hüseyni:
 Suzinak:rast,5:hicaz,4:rast:ırak:inici-çıkıcı:neva:
 Karcığar:uşşak,4:hicaz,5:dügah:rast:çıkıcı-inici:neva:
-Nihavend:buselik,5:kürdi,4:rast:ırak:inici-çıkıcı:neva:
+Nihavend:buselik,5:kürdi,4+hicaz,4@5:rast:ırak:inici-çıkıcı:neva:
 Segah:segah,5:hicaz,4:segah:kürdi:çıkıcı:neva:
 Hüzzam:hüzzam,5:hicaz,4:segah:kürdi:inici-çıkıcı:neva:
 Saba:saba,4:hicaz,5@3+hicaz,4@7:dügah:rast:çıkıcı:çargah:şehnaz
 Nikriz:nikriz,5:rast,4:rast:ırak:inici-çıkıcı:neva:
 Mahur:çargah,5:çargah,4:rast:ırak:inici:gerdaniye:
 Acemaşiran:çargah,5:çargah,4:acemaşiran:hüseyni aşiran:inici:acem:
-Sultaniyegah:buselik,5:hicaz,4:yegah:kabanimhicaz:inici:neva:
+Sultaniyegah:buselik,5:hicaz,4+kürdi,4@5:yegah:kabanimhicaz:inici:neva:
 Kürdilihicazkar:kürdi,4:buselik,5:rast:acemaşiran:inici:gerdaniye:
 Ferahnak:ferahnak,5:rast,4:ırak:acemaşiran:inici:evic:
 Şedaraban:hicaz,5:hicaz,4:yegah:kabanimhicaz:inici:neva:
-Muhayyerkürdi:kürdi,4:buselik,5:dügah:rast:inici:muhayyer:
+Muhayyerkürdi:kürdi,4:rast,5:dügah:rast:inici:muhayyer:
 Neveser:nikriz,5:hicaz,4:rast:ırak:inici-çıkıcı:neva:
 Zinciran:rast,5:uşşak,4:rast:ırak:inici:neva:
 Neva:uşşak,4:rast,5:dügah:rast:inici-çıkıcı:neva:
@@ -31,7 +31,7 @@ Muhayyer:hüseyni,5:uşşak,4:dügah:rast:inici:muhayyer:
 Hicazkar:hicaz,5:hicaz,4:rast:ırak:inici:gerdaniye:
 Suzidil:hicaz,5:hicaz,4:hüseyni aşiran:kaba nim hisar:inici:hüseyni:
 Acem:çargah,5:çargah,4:dügah:rast:inici:neva:
-Eviç:segah,5:hicaz,4:ırak:acemaşiran:inici:dügah:
+Eviç:irak,4:uşşak,4@3+rast,5@6:ırak:acemaşiran:inici:evic:evic
 Bestenigar:irak,4:saba,4@3+hicaz,5@5:ırak:acemaşiran:inici-çıkıcı:çargah:evic
 Gülizar:hüseyni,5:uşşak,4:dügah:rast:inici:hüseyni:
 Hisar:hüseyni,5:hicaz,4:dügah:rast:inici-çıkıcı:hüseyni:
@@ -39,3 +39,6 @@ Gerdaniye:hüseyni,5:uşşak,4:dügah:rast:inici:gerdaniye:
 Arazbar:uşşak,4:buselik,5:dügah:rast:inici-çıkıcı:gerdaniye:
 Müstear:mustear,5+segah,5@1:hicaz,4:segah:kürdi:çıkıcı:neva:
 Evcara:hicaz,5:hicaz,4:ırak:acemaşiran:inici:evic:evic
+Isfahan:uşşak,4:buselik,5:dügah:rast:inici-çıkıcı:neva:
+Tahir:uşşak,4:rast,5:dügah:rast:inici:muhayyer:
+Irak:irak,4:uşşak,4@3+rast,5@6:ırak:acemaşiran:çıkıcı:dügah:evic

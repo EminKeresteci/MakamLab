@@ -1,7 +1,29 @@
+def ses_kutuphanesi():
+    import os
+    yol = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "sf2", "GeneralUser-GS.sf2")
+    if not os.path.exists(yol): return "general_midi"
+    if os.name != "nt": return yol
+    import ctypes
+    from ctypes import wintypes
+    kisalt = ctypes.windll.kernel32.GetShortPathNameW
+    kisalt.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+    tampon = ctypes.create_unicode_buffer(1024)
+    return tampon.value if kisalt(yol, tampon, 1024) else yol
+
+
+def perde_midi(perde, koma=0, oktav=0, nazariyat=None):
+    if nazariyat is None: nazariyat = Nazariyat()
+    parcalar = str(perde).split(",")
+    if len(parcalar) == 3: esas, koma, oktav = parcalar
+    elif len(parcalar) == 2: esas, koma = parcalar
+    else: esas = parcalar[0]
+    return 55 + nazariyat.mutlak_koma(f"{esas},{int(koma)},{int(oktav)}") * 12 / 53
+
+
 def seslendir(perde, koma=0, oktav=0, volume=0.7, duration=1, alet=0, session=None, instrument=None, nazariyat=None, print_midi=False):
     if session is None:
         from scamp import Session
-        session = Session()
+        session = Session(default_soundfont=ses_kutuphanesi())
     if nazariyat is None: nazariyat = Nazariyat()
 
     if instrument is None:
@@ -9,18 +31,7 @@ def seslendir(perde, koma=0, oktav=0, volume=0.7, duration=1, alet=0, session=No
         with contextlib.redirect_stdout(io.StringIO()):
             instrument = session.new_part(preset=alet)
 
-    degerler = {"sol": 0, "la": 2, "si": 4, "do": 5, "re": 7, "mi": 9, "fa": 10}
-
-    perde = perde.split(",")
-    if len(perde) == 3: perde, koma, oktav = perde
-    elif len(perde) == 2: perde, koma = perde
-    else: perde = perde[0]
-    koma = int(koma)
-    oktav = int(oktav)
-
-    koma_kesir = koma * (12 / 53)
-
-    midi = 55 + degerler[perde.lower()] + oktav*12 + koma_kesir
+    midi = perde_midi(perde, koma, oktav, nazariyat)
     if print_midi: print(midi)
     import time
     nota = instrument.start_note(midi, volume)
@@ -34,25 +45,14 @@ def nota_baslat(perde, koma=0, oktav=0, volume=0.7, alet=0, session=None, instru
     """Notayı başlatır ve bir NoteHandle döndürür. nota.end() ile kesilir."""
     if session is None:
         from scamp import Session
-        session = Session()
+        session = Session(default_soundfont=ses_kutuphanesi())
     if nazariyat is None: nazariyat = Nazariyat()
     if instrument is None:
         import contextlib, io
         with contextlib.redirect_stdout(io.StringIO()):
             instrument = session.new_part(preset=alet)
 
-    degerler = {"sol": 0, "la": 2, "si": 4, "do": 5, "re": 7, "mi": 9, "fa": 10}
-
-    perde_parcalari = str(perde).split(",")
-    if len(perde_parcalari) == 3: perde, koma, oktav = perde_parcalari
-    elif len(perde_parcalari) == 2: perde, koma = perde_parcalari
-    else: perde = perde_parcalari[0]
-    koma = int(koma)
-    oktav = int(oktav)
-
-    koma_kesir = koma * (12 / 53)
-    midi = 55 + degerler[perde.lower()] + oktav * 12 + koma_kesir
-
+    midi = perde_midi(perde, koma, oktav, nazariyat)
     nota = instrument.start_note(midi, volume)
     return nota, session, instrument, nazariyat
 
@@ -101,7 +101,7 @@ class Nazariyat():
         self.fıtri_perdeler = ["sol", "la", "si", "do", "re", "mi", "fa"]
         self.yarım_perdeler = ["si", "mi"], ["do", "fa"]
         self.koma = {'b':4, 's':5, 'm':6, 'k':8, 't': 9, 'a':12,
-                     '!':0, '%':1, '&':2, '/':3, '(':7, ')':10, '=':11} # normalde kullanılmayan koma değerleri
+                     '!':0, '%':1, '&':2, '/':3, '(':7, ')':10, '=':11, '*':13} # normalde kullanılmayan koma değerleri
 
         self.koma_degerleri = {"sol": 0, "la": 9, "si": 18, "do": 22,
                                "re": 31, "mi": 40, "fa": 44}
@@ -204,6 +204,12 @@ class Nazariyat():
                 çözüm.append((self.çeşni_bul(parça), 0))
         return çözüm
 
+    def adlıya_çek(self, perde):
+        k = self.mutlak_koma(perde)
+        if k in self.komadan_isme: return perde
+        en_yakın = min(self.komadan_isme, key=lambda a: (abs(a - k), a))
+        return self.isimden_perdeye(self.komadan_isme[en_yakın])
+
     def aralıklardan_perdelere(self, durak, *çeşniler, tiz=None):
         perdeler = [durak]
         güçlü = None
@@ -220,6 +226,8 @@ class Nazariyat():
                 perdeler.append(perde)
             perdeler = sirala(perdeler)
             if güçlü is None: güçlü = perdeler[-1]
+
+        perdeler = sirala([self.adlıya_çek(p) for p in perdeler])
 
         if tiz is not None:
             sinir = self.mutlak_koma(tiz)
