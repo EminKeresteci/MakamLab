@@ -1,0 +1,5 @@
+scamp
+PySide6
+pandas
+numpy
+sounddevice
