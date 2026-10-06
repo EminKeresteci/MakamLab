@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (QApplication, QWidget, QHBoxLayout, QVBoxLayout,
                                QPushButton, QLabel, QComboBox, QFrame)
 from PySide6.QtCore import Qt, QTimer, QSettings
 from PySide6.QtGui import QKeyEvent, QKeySequence, QShortcut
-from nazariyat import seslendir, nota_baslat, Nazariyat, Makam
+from nazariyat import seslendir, nota_baslat, Nazariyat, Makam, ses_kutuphanesi
 
 
 from tema import TEMALAR
@@ -307,7 +307,7 @@ class AnaPencere(QWidget):
         if self.daimi_meclis is None:
             try:
                 from scamp import Session
-                self.daimi_meclis = Session()
+                self.daimi_meclis = Session(default_soundfont=ses_kutuphanesi())
                 self.daimi_meclis.master_clock.pool_size = 100
             except Exception as e:
                 print(f"Meclis hatasi: {e}")

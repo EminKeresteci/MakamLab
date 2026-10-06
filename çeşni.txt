@@ -26,5 +26,5 @@ bayati,4:KST
 bayati,5:KSTT
 zirgüle,4:SAS
 zirgüle,5:SAST
-nişabur,5:MTST
+nişabur,4:KST
 mustear,5:TSKT
