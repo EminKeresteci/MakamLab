@@ -1,80 +1,81 @@
-# MakamNN
+# MakamLab
 
-Türk makam müziğini bilgisayar ortamında modelleyen, çalan ve analiz eden bir kütüphane ve araç seti.
+Türk makam müziğini 53 eşit koma (AEU) üzerinden modelleyen, çalan ve
+dinleyerek tahlil eden bir kütüphane ve araç seti.
 
 ## Özellikler
 
-- **53-TET Sistemi** — Oktav 53 eşit adıma bölünür; koma hassasiyetiyle mikrotonal ses üretimi
-- **Nazariyat Motoru** — Perdeler, çeşniler, makam dizileri ve koma hesaplama sınıfları
-- **Etkileşimli Klavye** (`klavye.py`) — PySide6 tabanlı GUI; 38 perde, 4 tema, 16 enstrüman, tam ekran modu
-- **Taksim Algoritması** — Makam seyrini taklit eden rastgele/model tabanlı taksim
-- **Analiz Araçları** — FFT, spektrogram, perde/nota tespiti
+- **53-TET nazariyat motoru** — perde, çeşni ve makam dizileri; her perde
+  `mutlak_koma` üzerinden tek hesapla seslendirilir
+- **43 makam**, TDV İslâm Ansiklopedisi'yle teyitli diziler; gövde aileleri
+  için bkz. [`aileler.md`](aileler.md)
+- **Klavye** (`klavye.py`) — Türkçe Q üzerinde izomorfik ızgara, 30 saz,
+  8 tema, koma kaydırma
+- **Akort** (`akort.py`) — mikrofondan makam perdelerine göre akort ve
+  isabet ölçümü
+- **Tahlil** (`tahlil.py`) — makam bulma, mukayese ve dizi talimi
+- **Taksim** — `Makam.taksim()`, deneysel ve rastgele
 
-## Klavye (`klavye.py`)
+## Klavye
 
-Türkçe Q klavye düzeninde, fiziksel tuş dizilişiyle birebir eşleşen 4 satırlı klavye arayüzü.
-
-**Modlar:**
-- Normal: 14 perde (tek satır)
-- Tam ekran (`F11`): 38 perde (4 satır — Z…0 arası)
-
-**Özellikler:**
-- Durak perdesi mavi, güçlü perdesi turuncu renkte gösterilir
-- 4 tema: Çelik, Kehribar, Lacivert, Krem
-- 16 enstrüman: Piyano, Ud, Ney, Keman ve daha fazlası
-- Son seçilen makam, saz ve tema otomatik kaydedilir
-
-**Kısayollar:**
+Satır = oktav, sütun = derece. Ana satırda `A` yeden, `S` durak; her makamda
+aynı. Normal modda tek satır, `F11` tam ekranda dört satır (41 tuş).
 
 | Tuş | İşlev |
-|-----|--------|
-| `F11` | Tam ekran / normal geçiş |
-| `Ctrl+M` | Makam seçimi |
-| `Ctrl+I` | Saz seçimi |
+|---|---|
+| `F11` | Tam ekran / normal |
+| `<` / `>` | Izgarayı bir oktav aşağı / yukarı |
+| `Shift` (basılı) | Bütün perdeler +5 koma |
+| `Ctrl` (basılı) | Bütün perdeler −5 koma |
+| `Alt+M` / `Alt+I` | Makam / saz seçimi |
+| `Alt+D` | Çapraz / düz düzen |
 
-## Kullanım Örneği
+Yeden yeşil, durak mavi, güçlü turuncu gösterilir.
+
+## Kullanım
 
 ```python
-from nazariyat import Makam, seslendir
+from nazariyat import Nazariyat, Makam, seslendir
 
-# Makam oluştur ve seslendir
-rast = Makam("Rast")
+naz = Nazariyat()
+rast = Makam(isim="Rast", nazariyat=naz)
 print(rast.perdeler)
 rast.seslendir()
 
-# Tek perde çal
-seslendir("sol,-1,0", volume=1.0, duration=1.5)
+seslendir("sol,-1,0", duration=1.5, nazariyat=naz)
 ```
 
-## Perde Formatı
+## Perde formatı
 
-`"esas,koma,oktav"` — örn. `"sol,-1,0"` (Rast), `"la,0,1"` (Neva)
+`"esas,koma,oktav"` — örn. `"sol,0,0"` (rast), `"si,-1,0"` (segâh),
+`"la,0,1"` (muhayyer). Rast = sol = 0 koma; naturaller
+`la=9, si=18, do=22, re=31, mi=40, fa=44`.
 
 ```python
-koma_kesir = koma * (12 / 53)
-midi = 55 + degerler[esas] + oktav * 12 + koma_kesir
+midi = 55 + nazariyat.mutlak_koma(perde) * 12 / 53
 ```
 
-## Dosya Yapısı
+## Dosyalar
 
-| Dosya | Açıklama |
-|-------|----------|
-| `nazariyat.py` | Ana kütüphane: `Nazariyat`, `Makam`, `seslendir`, `nota_baslat` |
-| `klavye.py` | PySide6 GUI klavye çalıcı |
-| `dizi.txt` | 38 makam (alt çeşni, üst çeşni, durak, yeden, güçlü, seyir) |
-| `perde.txt` | Perde adları ve koma/oktav değerleri |
-| `çeşni.txt` | Çeşni aralık şifreleri |
-| `fft.py` | FFT / frekans analizi |
-| `tesbit.py` | Perde/nota tespiti |
-| `waterfall.py` | Spektrogram görselleştirme |
+| Dosya | İçerik |
+|---|---|
+| `nazariyat.py` | `Nazariyat`, `Makam`, `seslendir`, `nota_baslat` |
+| `klavye.py`, `akort.py`, `tahlil.py` | Uygulamalar |
+| `tema.py` | Renk temaları |
+| `dizi.txt` | Makamlar: alt/üst çeşni, durak, yeden, seyir, güçlü, tiz |
+| `perde.txt` | Perde adları ve koma değerleri |
+| `çeşni.txt` | Çeşni aralık şifreleri (`b=4 s=5 k=8 t=9 a=12`) |
+| `aileler.md` | Makam aileleri, TDV kaynaklı |
 
 ## Kurulum
 
 ```bash
-pip install scamp PySide6 pandas numpy
+pip install -r requirements.txt
 ```
 
-> `scamp` için FluidSynth kurulu olmalıdır.
+Ses için önerilen kütüphane GeneralUser GS'dir:
+[GeneralUser-GS.sf2](https://github.com/mrbumpy409/GeneralUser-GS) dosyasını
+`data/sf2/` altına koyun; yoksa scamp'ın varsayılan kütüphanesi kullanılır.
 
 ## Lisans
 
