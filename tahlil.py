@@ -485,7 +485,7 @@ class AnalizSekmesi(QWidget):
         ustte = prd[idx:]
         self._stop = threading.Event()
         t = threading.Thread(target=self._cal_thread,
-                             args=(list(altta) + list(ustte), self._stop),
+                             args=(list(altta) + [None] + list(ustte), self._stop),
                              daemon=True)
         t.start()
         self.btn_dur.setEnabled(True)
@@ -501,6 +501,10 @@ class AnalizSekmesi(QWidget):
         for i, prd in enumerate(prd_listesi):
             if stop.is_set():
                 break
+            if prd is None:
+                self.diyagram.aktif_goster(-1)
+                stop.wait(sure)
+                continue
             self.diyagram.aktif_goster(
                 self.makam.perdeler.index(prd) if prd in self.makam.perdeler else -1
             )
