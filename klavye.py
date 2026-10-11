@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (QApplication, QWidget, QHBoxLayout, QVBoxLayout,
                                QPushButton, QLabel, QComboBox, QFrame)
 from PySide6.QtCore import Qt, QTimer, QSettings
 from PySide6.QtGui import QKeyEvent, QKeySequence, QShortcut
-from nazariyat import seslendir, nota_baslat, Nazariyat, Makam, ses_kutuphanesi
+from nazariyat import seslendir, nota_baslat, Nazariyat, Makam, ses_kutuphanesi, ses_kazanci
 
 
 from tema import TEMALAR
@@ -321,6 +321,7 @@ class AnaPencere(QWidget):
                 import contextlib, io
                 with contextlib.redirect_stdout(io.StringIO()):
                     self.aktif_enstruman = self.daimi_meclis.new_part(preset=alet_kodu)
+                ses_kazanci()
                 self.aktif_alet_kodu = alet_kodu
         return self.aktif_enstruman
 

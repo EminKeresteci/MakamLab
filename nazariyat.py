@@ -11,6 +11,15 @@ def ses_kutuphanesi():
     return tampon.value if kisalt(yol, tampon, 1024) else yol
 
 
+SES_KAZANCI = 0.8
+
+
+def ses_kazanci(kazanc=SES_KAZANCI):
+    from scamp.playback_implementations import SoundfontPlaybackImplementation
+    for host in SoundfontPlaybackImplementation.soundfont_hosts.values():
+        host.synth.setting("synth.gain", float(kazanc))
+
+
 def perde_midi(perde, koma=0, oktav=0, nazariyat=None):
     if nazariyat is None: nazariyat = Nazariyat()
     parcalar = str(perde).split(",")
