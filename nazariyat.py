@@ -11,7 +11,7 @@ def ses_kutuphanesi():
     return tampon.value if kisalt(yol, tampon, 1024) else yol
 
 
-SES_KAZANCI = 0.8
+SES_KAZANCI = 1.9
 
 
 def ses_kazanci(kazanc=SES_KAZANCI):
@@ -29,7 +29,7 @@ def perde_midi(perde, koma=0, oktav=0, nazariyat=None):
     return 55 + nazariyat.mutlak_koma(f"{esas},{int(koma)},{int(oktav)}") * 12 / 53
 
 
-def seslendir(perde, koma=0, oktav=0, volume=0.7, duration=1, alet=0, session=None, instrument=None, nazariyat=None, print_midi=False):
+def seslendir(perde, koma=0, oktav=0, volume=1.0, duration=1, alet=0, session=None, instrument=None, nazariyat=None, print_midi=False):
     if session is None:
         from scamp import Session
         session = Session(default_soundfont=ses_kutuphanesi())
@@ -43,6 +43,7 @@ def seslendir(perde, koma=0, oktav=0, volume=0.7, duration=1, alet=0, session=No
     midi = perde_midi(perde, koma, oktav, nazariyat)
     if print_midi: print(midi)
     import time
+    ses_kazanci()
     nota = instrument.start_note(midi, volume)
     time.sleep(duration)
     nota.end()
@@ -50,7 +51,7 @@ def seslendir(perde, koma=0, oktav=0, volume=0.7, duration=1, alet=0, session=No
     return session, instrument, nazariyat
 
 
-def nota_baslat(perde, koma=0, oktav=0, volume=0.7, alet=0, session=None, instrument=None, nazariyat=None):
+def nota_baslat(perde, koma=0, oktav=0, volume=1.0, alet=0, session=None, instrument=None, nazariyat=None):
     """Notayı başlatır ve bir NoteHandle döndürür. nota.end() ile kesilir."""
     if session is None:
         from scamp import Session
@@ -62,6 +63,7 @@ def nota_baslat(perde, koma=0, oktav=0, volume=0.7, alet=0, session=None, instru
             instrument = session.new_part(preset=alet)
 
     midi = perde_midi(perde, koma, oktav, nazariyat)
+    ses_kazanci()
     nota = instrument.start_note(midi, volume)
     return nota, session, instrument, nazariyat
 
