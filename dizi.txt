@@ -42,3 +42,9 @@ Evcara:hicaz,5:hicaz,4:ırak:acemaşiran:inici:evic:evic
 Isfahan:uşşak,4:buselik,5:dügah:rast:inici-çıkıcı:neva:
 Tahir:uşşak,4:rast,5:dügah:rast:inici:muhayyer:
 Irak:irak,4:uşşak,4@3+rast,5@6:ırak:acemaşiran:çıkıcı:dügah:evic
+Pençgah:rast,5:rast,4+buselik,4@5:rast:ırak:inici-çıkıcı:neva:
+Şehnaz:hicaz,5:hicaz,4:dügah:nim zirgüle:inici:muhayyer:
+Şevkefza:nikriz,5:hicaz,4:acemaşiran:hüseyni aşiran:inici:gerdaniye:
+Ferahfeza:buselik,5:kürdi,4:yegah:kabanimhicaz:inici:acem:
+Bayatiaraban:uşşak,4:hicaz,5:dügah:rast:inici:muhayyer:
+Yegah:rast,5:buselik,4+uşşak,4@5:yegah:kabanimhicaz:inici:neva:

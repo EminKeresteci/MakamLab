@@ -16,7 +16,7 @@ segah,5:STKT
 saba,4:KSS
 hüzzam,5:STSA
 nikriz,5:TSAS
-pençgah,5:TKST
+pençgah,5:TTKS
 ferahnak,5:STKT
 acem,5:TTBT
 mahur,5:TTBT
