@@ -12,6 +12,8 @@ import json
 import os
 import random
 
+import numpy as np
+
 KOK = os.path.dirname(os.path.abspath(__file__))
 TAHLIL = os.path.join(KOK, "data", "ney_taksimleri", "tahlil")
 URETECLER = {}
@@ -285,12 +287,21 @@ def _kayit_dizisi(j, makam, naz):
     return sonuc
 
 
+_MODELLER = {}
+
+
 def markov_modeli(makam, naz, haric=()):
+    anahtar = (makam.isim, tuple(sorted(haric)))
+    if anahtar not in _MODELLER:
+        _MODELLER[anahtar] = _markov_modeli(makam, naz, haric)
+    return _MODELLER[anahtar]
+
+
+def _kaynaklar(makam, naz, haric):
+    """Ayni derece sayisindaki kayitlar: (tur, agirlik, konum dizisi)."""
     from nazariyat import Makam
     n = len(makam.perdeler) - 1
     imza = [naz.mutlak_koma(p) - naz.mutlak_koma(makam.perdeler[0]) for p in makam.perdeler]
-    say2, say1, say0 = {}, {}, {}
-    sure, cesit = {}, {}
     for j in kayitlar():
         if j["id"] in haric:
             continue
@@ -302,8 +313,14 @@ def markov_modeli(makam, naz, haric=()):
             continue
         kimza = [naz.mutlak_koma(p) - naz.mutlak_koma(km.perdeler[0]) for p in km.perdeler]
         tur = "kendi" if km.isim == makam.isim else "aile" if kimza == imza else "diger"
-        w = AGIRLIK[tur]
-        dizi = _kayit_dizisi(j, km, naz)
+        yield tur, AGIRLIK[tur], _kayit_dizisi(j, km, naz)
+
+
+def _markov_modeli(makam, naz, haric):
+    n = len(makam.perdeler) - 1
+    say2, say1, say0 = {}, {}, {}
+    sure, cesit = {}, {}
+    for tur, w, dizi in _kaynaklar(makam, naz, haric):
         semboller = ["|"] + ["|" if k is None else k for k, _, _ in dizi]
         for a, b, c in zip(semboller, semboller[1:], semboller[2:]):
             say2.setdefault((a, b), {}).setdefault(c, 0.0)
@@ -425,6 +442,76 @@ def karma(makam, uzunluk=48, tohum=None, naz=None, haric=()):
     return sonuc
 
 
+def cumle_kutuphanesi(makam, naz, haric=()):
+    """Kayitlari sus yerlerinden cumlelere boler: cumleler ve sus sureleri."""
+    anahtar = ("kalıp", makam.isim, tuple(sorted(haric)))
+    if anahtar not in _MODELLER:
+        cumleler, suslar = [], []
+        for tur, w, dizi in _kaynaklar(makam, naz, haric):
+            cumle = []
+            for k, s, rk in dizi + [(None, 0.0, None)]:
+                if k is not None:
+                    cumle.append((k, s, rk))
+                    continue
+                if len(cumle) >= 2:
+                    cumleler.append({"notalar": cumle, "w": w, "kendi": tur == "kendi"})
+                if s:
+                    suslar.append((min(s, 2.5), w))
+                cumle = []
+        _MODELLER[anahtar] = {"cumleler": cumleler, "suslar": suslar}
+    return _MODELLER[anahtar]
+
+
+@uretec("kalıp")
+def kalip(makam, uzunluk=48, tohum=None, naz=None, haric=()):
+    """Gercek taksimlerden kesilmis cumleler seyir planina gore dizilir: her
+    hedef icin sonu oraya varan cumle secilir, gerekirse derece kaydirilir.
+    Perde, ritim ve cesni icradan gelir."""
+    naz = _naz(naz)
+    rnd = random.Random(tohum)
+    kut = cumle_kutuphanesi(makam, naz, haric)
+    if not kut["cumleler"]:
+        return kural(makam, uzunluk, tohum, naz)
+    sira, durak_i = cetvel(makam, naz, alt=1, ust=2)
+    alt_sinir, ust_sinir = -durak_i, len(sira) - 1 - durak_i
+    taban = naz.mutlak_koma(makam.perdeler[0])
+    koma_perde = _koma_perde(naz)
+    n, guclu, yeden, k, hedefler = _plan(makam, naz, uzunluk, rnd)
+
+    kullanilan, sonuc = {}, []
+    for hedef, tur in hedefler:
+        adaylar, agirlik = [], []
+        for i, c in enumerate(kut["cumleler"]):
+            notalar = c["notalar"]
+            kay = hedef - notalar[-1][0]
+            if not all(alt_sinir <= x + kay <= ust_sinir for x, _, _ in notalar):
+                continue
+            adaylar.append((i, kay))
+            agirlik.append(c["w"] * 0.25 ** abs(kay) * 0.6 ** abs(notalar[0][0] + kay - k)
+                           * 0.15 ** kullanilan.get(i, 0))
+        if not adaylar:
+            continue
+        i, kay = rnd.choices(adaylar, agirlik)[0]
+        kullanilan[i] = kullanilan.get(i, 0) + 1
+        c = kut["cumleler"][i]
+        for x, s, rk in c["notalar"]:
+            p = koma_perde.get(taban + rk) if kay == 0 and c["kendi"] else None
+            sonuc.append((p or sira[durak_i + x + kay], s))
+        k = hedef
+        if tur == "karar":
+            break
+        sonuc.append((None, rnd.choices([s for s, _ in kut["suslar"]],
+                                        [w for _, w in kut["suslar"]])[0] if kut["suslar"] else 0.8))
+    while sonuc and sonuc[-1][0] is None:
+        sonuc.pop()
+    son = _konum(naz, makam, sonuc[-1][0]) if sonuc else None
+    if son != 0:
+        if son != yeden:
+            sonuc.append((sira[durak_i + yeden], 0.45))
+        sonuc.append((sira[durak_i], 2.4))
+    return sonuc
+
+
 @uretec("rastgele")
 def rastgele(makam, uzunluk=40, tohum=None, naz=None):
     """Eski Makam.taksim(): +-2 derece rastgele yuruyus. Kiyasta taban cizgisi."""
@@ -436,6 +523,111 @@ def rastgele(makam, uzunluk=40, tohum=None, naz=None):
         sonuc.append((sira[i], 0.35))
         i = min(len(sira) - 1, max(0, i + rnd.randint(-2, 2)))
     return sonuc
+
+
+ORAN = 44100
+
+
+def _yumusat(x, n):
+    n = max(1, int(n))
+    c = np.cumsum(np.concatenate([np.zeros(n // 2 + 1), x, np.zeros(n - n // 2)]))
+    return (c[n:n + len(x)] - c[:len(x)]) / n
+
+
+def seslendir(notalar, naz=None, oran=ORAN, oktav=1, tohum=0):
+    """Ney benzeri kesintisiz sentez: notalar arasi kayma, uzun notada
+    gecikmeli titresim, nefes hisiltisi, cumle boyu sisip sonme, kisa yanki."""
+    from nazariyat import perde_midi
+    naz = _naz(naz)
+    rnd = np.random.default_rng(tohum)
+    toplam = int(oran * (sum(s for _, s in notalar) + 0.7))
+    midi = np.zeros(toplam)
+    genlik = np.zeros(toplam)
+    i, onceki = 0, None
+    cumle = []
+
+    def cumle_bitir():
+        if not cumle:
+            return
+        a, b = cumle[0], cumle[-1]
+        boy = b - a
+        z = np.ones(boy)
+        acilis, kapanis = min(boy, int(0.09 * oran)), min(boy, int(0.16 * oran))
+        z[:acilis] *= np.sin(np.linspace(0, np.pi / 2, acilis)) ** 2
+        z[boy - kapanis:] *= np.cos(np.linspace(0, np.pi / 2, kapanis)) ** 2
+        genlik[a:b] *= z
+        cumle.clear()
+
+    for perde, sure in notalar:
+        n = int(sure * oran)
+        if perde is None:
+            cumle_bitir()
+            midi[i:i + n] = midi[i - 1] if i else 0
+            onceki = None
+            i += n
+            continue
+        hedef = perde_midi(perde, nazariyat=naz) + 12 * oktav
+        egri = np.full(n, hedef)
+        if onceki is None:
+            k = min(n, int(0.06 * oran))
+            egri[:k] -= 0.3 * np.cos(np.linspace(0, np.pi / 2, k))
+        else:
+            k = min(n // 2, int(min(0.07, 0.25 * sure) * oran))
+            egri[:k] = onceki + (hedef - onceki) * (0.5 - 0.5 * np.cos(np.linspace(0, np.pi, k)))
+        if sure > 0.45:
+            t = np.arange(n) / oran
+            derinlik = 0.12 * np.clip((t - 0.3) / 0.6, 0, 1)
+            egri += derinlik * np.sin(2 * np.pi * rnd.uniform(4.6, 5.4) * t)
+        z = np.ones(n)
+        if onceki is not None:
+            k = min(n, int(0.05 * oran))
+            z[:k] = 1 - 0.18 * np.sin(np.linspace(0, np.pi, k))
+        if sure > 0.8:
+            t = np.linspace(0, 1, n)
+            z *= 0.85 + 0.25 * np.sin(np.pi * np.minimum(1, t * 1.6)) - 0.15 * t
+        midi[i:i + n] = egri
+        genlik[i:i + n] = z
+        if not cumle:
+            cumle.append(i)
+        cumle[1:] = [i + n]
+        onceki = hedef
+        i += n
+    cumle_bitir()
+    midi[i:] = midi[i - 1] if i else 0
+
+    sapma = _yumusat(rnd.standard_normal(toplam), oran * 0.25) * 4
+    f = 440.0 * 2 ** ((midi + sapma - 69) / 12)
+    faz = 2 * np.pi * np.cumsum(f) / oran
+    nefes_mod = 1 + 0.04 * _yumusat(rnd.standard_normal(toplam), oran * 0.01) * 10
+    ton = (np.sin(faz) + 0.22 * np.sin(2 * faz) + 0.08 * np.sin(3 * faz)
+           + 0.03 * np.sin(4 * faz)) * nefes_mod
+    gurultu = rnd.standard_normal(toplam)
+    hisilti = _yumusat(gurultu - _yumusat(gurultu, oran / 1500), oran / 9000)
+    atak = np.zeros(toplam)
+    fark = np.diff(np.concatenate([[0], (genlik > 0.05).astype(float)]))
+    for b in np.flatnonzero(fark > 0):
+        k = min(toplam - b, int(0.12 * oran))
+        atak[b:b + k] = np.linspace(1, 0, k) ** 2
+    kuru = genlik * (ton + hisilti * (0.12 + 0.4 * atak))
+    yanki_boy = int(0.5 * oran)
+    tepki = rnd.standard_normal(yanki_boy) * np.exp(-np.arange(yanki_boy) / (0.12 * oran))
+    tepki *= np.cos(np.linspace(0, np.pi / 2, yanki_boy)) ** 2
+    tepki = _yumusat(tepki, oran / 6000)
+    tepki[0] = 0
+    m = 1 << int(np.ceil(np.log2(toplam + yanki_boy)))
+    islak = np.fft.irfft(np.fft.rfft(kuru, m) * np.fft.rfft(tepki, m), m)[:toplam]
+    islak *= np.abs(kuru).max() / (np.abs(islak).max() or 1)
+    dalga = kuru + 0.25 * islak
+    return (0.8 * dalga / (np.abs(dalga).max() or 1)).astype(np.float32)
+
+
+def wav_yaz(yol, dalga, oran=ORAN):
+    import wave
+    with wave.open(yol, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(oran)
+        w.writeframes((np.clip(dalga, -1, 1) * 32767).astype("<i2").tobytes())
 
 
 def olc(uretec_adi="rastgele", atla=("Hüzzam",)):
@@ -472,11 +664,64 @@ def olc(uretec_adi="rastgele", atla=("Hüzzam",)):
             100 * orta("dizi_disi"), 100 * orta("son_durak"), 100 * orta("son_guclu"), adim))
 
 
+BILESENLER = ("adım", "derece", "durak", "güçlü", "dışı", "sonD", "sonG", "cümle", "süre")
+
+
+def uzaklik(o, g):
+    """Iki olcut kumesi arasinda bilesen bilesen uzaklik, her biri 0..1."""
+    adim = 0.5 * sum(abs(o["adim"].get(a, 0) - g["adim"].get(a, 0)) for a in range(-4, 5))
+    derece = 0.5 * sum(abs(x - y) for x, y in zip(o["derece"], g["derece"]))
+    fark = lambda k: abs((o[k] or 0) - (g[k] or 0))
+    oran = lambda k: min(1.0, abs(o[k] - g[k]) / max(g[k], 1e-6))
+    return dict(zip(BILESENLER, (adim, derece, fark("durak_payi"), fark("guclu_payi"),
+                                 fark("dizi_disi"), fark("son_durak"), fark("son_guclu"),
+                                 oran("cumle_nota"), oran("sure"))))
+
+
+def kiyas(ureteçler=("rastgele", "kural", "markov", "karma", "kalıp"), tohumlar=5, atla=("Hüzzam",)):
+    """Her kayit icin ureteclerin olcutlerinin gercege uzakligi; ogrenen
+    ureteclerde o kayit modelden cikarilir (birini disarida birak)."""
+    import inspect
+    from nazariyat import Nazariyat, Makam
+    naz = Nazariyat()
+    sonuc = {ad: [] for ad in ureteçler}
+    makam_satiri = []
+    for j in kayitlar():
+        if j["makam"] in atla:
+            continue
+        m = Makam(j["makam"], nazariyat=naz)
+        gercek = olcutler(kayittan(j), m, naz, normalle=True)
+        satir = {}
+        for ad in ureteçler:
+            f = URETECLER[ad]
+            ek = {"haric": (j["id"],)} if "haric" in inspect.signature(f).parameters else {}
+            for t in range(tohumlar):
+                notalar = f(m, uzunluk=len(j["notalar"]), tohum=t, naz=naz, **ek)
+                u = uzaklik(olcutler(notalar, m, naz), gercek)
+                sonuc[ad].append(u)
+                satir[ad] = satir.get(ad, 0) + sum(u.values()) / len(u) / tohumlar
+        makam_satiri.append((j["makam"], satir))
+
+    print("%-20s " % "makam" + " ".join("%8s" % ad for ad in ureteçler) + "  en yakın")
+    for makam, satir in makam_satiri:
+        print("%-20s " % makam[:20] + " ".join("%8.3f" % satir[ad] for ad in ureteçler)
+              + "  " + min(satir, key=satir.get))
+    print()
+    print("%-10s " % "uzaklık" + " ".join("%6s" % b for b in BILESENLER) + "   ortalama")
+    for ad, liste in sonuc.items():
+        ort = {b: sum(u[b] for u in liste) / len(liste) for b in BILESENLER}
+        print("%-10s " % ad + " ".join("%6.3f" % ort[b] for b in BILESENLER)
+              + "   %.3f" % (sum(ort.values()) / len(ort)))
+
+
 if __name__ == "__main__":
     import sys
     sys.stdout.reconfigure(encoding="utf-8")
     if len(sys.argv) > 1 and sys.argv[1] == "olc":
         olc(*sys.argv[2:3])
+    elif len(sys.argv) > 1 and sys.argv[1] == "kiyas":
+        kiyas()
     else:
         print(__doc__)
         print("    python taksim.py olc [" + "|".join(URETECLER) + "]")
+        print("    python taksim.py kiyas")
