@@ -146,6 +146,7 @@ class Nazariyat():
         return
 
     def koma_ekle(self, perde, eklenecek_koma):
+        if eklenecek_koma == 0: return perde
 
         esas, koma, oktav = perde.split(",")
 
