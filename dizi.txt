@@ -1,50 +1,57 @@
-isim:alt:üst:durak:yeden:seyir:güçlü:tiz
-Çargah:çargah,5:çargah,4:çargah:buselik:çıkıcı:gerdaniye:
-Buselik:buselik,5:hicaz,4:dügah:nim zirgüle:çıkıcı:hüseyni:
-Kürdi:kürdi,4:buselik,5:dügah:rast:çıkıcı:neva:
-Rast:rast,5:rast,4:rast:ırak:çıkıcı:neva:
-Uşşak:uşşak,4:buselik,5:dügah:rast:çıkıcı:neva:
-Hüseyni:hüseyni,5:uşşak,4:dügah:rast:inici-çıkıcı:hüseyni:
-Hicaz:hicaz,4:rast,5:dügah:rast:inici-çıkıcı:neva:
-Hümayun:hicaz,4:buselik,5:dügah:rast:inici-çıkıcı:neva:
-Uzzal:hicaz,5:uşşak,4:dügah:rast:çıkıcı-inici:hüseyni:
-ZirgüleliHicaz:hicaz,5:hicaz,4:dügah:nim zirgüle:inici-çıkıcı:hüseyni:
-Suzinak:rast,5:hicaz,4:rast:ırak:inici-çıkıcı:neva:
-Karcığar:uşşak,4:hicaz,5:dügah:rast:çıkıcı-inici:neva:
-Nihavend:buselik,5:kürdi,4+hicaz,4@5:rast:ırak:inici-çıkıcı:neva:
-Segah:segah,5:hicaz,4:segah:kürdi:çıkıcı:neva:
-Hüzzam:hüzzam,5:hicaz,4:segah:kürdi:inici-çıkıcı:neva:
-Saba:saba,4:hicaz,5@3+hicaz,4@7:dügah:rast:çıkıcı:çargah:şehnaz
-Nikriz:nikriz,5:rast,4:rast:ırak:inici-çıkıcı:neva:
-Mahur:çargah,5:çargah,4:rast:ırak:inici:gerdaniye:
-Acemaşiran:çargah,5:çargah,4:acemaşiran:hüseyni aşiran:inici:acem:
-Sultaniyegah:buselik,5:hicaz,4+kürdi,4@5:yegah:kabanimhicaz:inici:neva:
-Kürdilihicazkar:kürdi,4:buselik,5:rast:acemaşiran:inici:gerdaniye:
-Ferahnak:ferahnak,5:rast,4:ırak:acemaşiran:inici:evic:
-Şedaraban:hicaz,5:hicaz,4:yegah:kabanimhicaz:inici:neva:
-Muhayyerkürdi:kürdi,4:rast,5:dügah:rast:inici:muhayyer:
-Neveser:nikriz,5:hicaz,4:rast:ırak:inici-çıkıcı:neva:
-Zinciran:rast,5:uşşak,4:rast:ırak:inici:neva:
-Neva:uşşak,4:rast,5:dügah:rast:inici-çıkıcı:neva:
-Bayati:uşşak,4:buselik,5:dügah:rast:çıkıcı-inici:neva:
-Muhayyer:hüseyni,5:uşşak,4:dügah:rast:inici:muhayyer:
-Hicazkar:hicaz,5:hicaz,4:rast:ırak:inici:gerdaniye:
-Suzidil:hicaz,5:hicaz,4:hüseyni aşiran:kaba nim hisar:inici:hüseyni:
-Acem:çargah,5:çargah,4:dügah:rast:inici:neva:
-Eviç:irak,4:uşşak,4@3+rast,5@6:ırak:acemaşiran:inici:evic:evic
-Bestenigar:irak,4:saba,4@3+hicaz,5@5:ırak:acemaşiran:inici-çıkıcı:çargah:evic
-Gülizar:hüseyni,5:uşşak,4:dügah:rast:inici:hüseyni:
-Hisar:hüseyni,5:hicaz,4:dügah:rast:inici-çıkıcı:hüseyni:
-Gerdaniye:hüseyni,5:uşşak,4:dügah:rast:inici:gerdaniye:
-Arazbar:uşşak,4:buselik,5:dügah:rast:inici-çıkıcı:gerdaniye:
-Müstear:mustear,5+segah,5@1:hicaz,4:segah:kürdi:çıkıcı:neva:
-Evcara:hicaz,5:hicaz,4:ırak:acemaşiran:inici:evic:evic
-Isfahan:uşşak,4:buselik,5:dügah:rast:inici-çıkıcı:neva:
-Tahir:uşşak,4:rast,5:dügah:rast:inici:muhayyer:
-Irak:irak,4:uşşak,4@3+rast,5@6:ırak:acemaşiran:çıkıcı:dügah:evic
-Pençgah:rast,5:rast,4+buselik,4@5:rast:ırak:inici-çıkıcı:neva:
-Şehnaz:hicaz,5:hicaz,4:dügah:nim zirgüle:inici:muhayyer:
-Şevkefza:nikriz,5:hicaz,4:acemaşiran:hüseyni aşiran:inici:gerdaniye:
-Ferahfeza:buselik,5:kürdi,4:yegah:kabanimhicaz:inici:acem:
-Bayatiaraban:uşşak,4:hicaz,5:dügah:rast:inici:muhayyer:
-Yegah:rast,5:buselik,4+uşşak,4@5:yegah:kabanimhicaz:inici:neva:
+isim:alt:üst:durak:yeden:seyir:güçlü:tiz:aile
+Çargah:çargah,5:çargah,4:çargah:buselik:çıkıcı:gerdaniye::Çargah
+Buselik:buselik,5:hicaz,4:dügah:nim zirgüle:çıkıcı:hüseyni::Buselik
+Kürdi:kürdi,4:buselik,5:dügah:rast:çıkıcı:neva::Kürdi
+Rast:rast,5:rast,4:rast:ırak:çıkıcı:neva::Rast
+Uşşak:uşşak,4:buselik,5:dügah:rast:çıkıcı:neva::Uşşak
+Hüseyni:hüseyni,5:uşşak,4:dügah:rast:inici-çıkıcı:hüseyni::Hüseyni
+Hicaz:hicaz,4:rast,5:dügah:rast:inici-çıkıcı:neva::Hicaz
+Hümayun:hicaz,4:buselik,5:dügah:rast:inici-çıkıcı:neva::Hicaz
+Uzzal:hicaz,5:uşşak,4:dügah:rast:çıkıcı-inici:hüseyni::Hicaz
+ZirgüleliHicaz:hicaz,5:hicaz,4:dügah:nim zirgüle:inici-çıkıcı:hüseyni::Hicaz
+Suzinak:rast,5:hicaz,4:rast:ırak:inici-çıkıcı:neva::Rast,Hicaz
+Karcığar:uşşak,4:hicaz,5:dügah:rast:çıkıcı-inici:neva::Uşşak,Hicaz
+Nihavend:buselik,5:kürdi,4+hicaz,4@5:rast:ırak:inici-çıkıcı:neva::Buselik
+Segah:segah,5:hicaz,4:segah:kürdi:çıkıcı:neva::Segah
+Hüzzam:hüzzam,5:hicaz,4:segah:kürdi:inici-çıkıcı:neva::Segah
+Saba:saba,4:hicaz,5@3+hicaz,4@7:dügah:rast:çıkıcı:çargah:şehnaz:Saba
+Nikriz:nikriz,5:rast,4:rast:ırak:inici-çıkıcı:neva::Nikriz
+Mahur:çargah,5:çargah,4:rast:ırak:inici:gerdaniye::Çargah
+Acemaşiran:çargah,5:çargah,4:acemaşiran:hüseyni aşiran:inici:acem::Çargah
+Sultaniyegah:buselik,5:hicaz,4+kürdi,4@5:yegah:kabanimhicaz:inici:neva::Buselik
+Kürdilihicazkar:kürdi,4:buselik,5:rast:acemaşiran:inici:gerdaniye::Kürdi
+Ferahnak:ferahnak,5:rast,4:ırak:acemaşiran:inici:evic::Diğer
+Şedaraban:hicaz,5:hicaz,4:yegah:kabanimhicaz:inici:neva::Hicaz
+Muhayyerkürdi:kürdi,4:rast,5:dügah:rast:inici:muhayyer::Hüseyni,Kürdi
+Neveser:nikriz,5:hicaz,4:rast:ırak:inici-çıkıcı:neva::Nikriz
+Zinciran:rast,5:uşşak,4:rast:ırak:inici:neva::Rast
+Neva:uşşak,4:rast,5:dügah:rast:inici-çıkıcı:neva::Uşşak
+Bayati:uşşak,4:buselik,5:dügah:rast:çıkıcı-inici:neva::Uşşak
+Muhayyer:hüseyni,5:uşşak,4:dügah:rast:inici:muhayyer::Hüseyni
+Hicazkar:hicaz,5:hicaz,4:rast:ırak:inici:gerdaniye::Hicaz
+Suzidil:hicaz,5:hicaz,4:hüseyni aşiran:kaba nim hisar:inici:hüseyni::Hicaz
+Acem:çargah,5:çargah,4:dügah:rast:inici:neva::Çargah
+Eviç:irak,4:uşşak,4@3+rast,5@6:ırak:acemaşiran:inici:evic:evic:Segah
+Bestenigar:irak,4:saba,4@3+hicaz,5@5:ırak:acemaşiran:inici-çıkıcı:çargah:evic:Saba
+Gülizar:hüseyni,5:uşşak,4:dügah:rast:inici:hüseyni::Hüseyni
+Hisar:hüseyni,5:hicaz,4:dügah:rast:inici-çıkıcı:hüseyni::Hüseyni
+Gerdaniye:hüseyni,5:uşşak,4:dügah:rast:inici:gerdaniye::Rast,Hüseyni
+Arazbar:uşşak,4:buselik,5:dügah:rast:inici-çıkıcı:gerdaniye::Diğer
+Müstear:mustear,5+segah,5@1:hicaz,4:segah:kürdi:çıkıcı:neva::Segah
+Evcara:hicaz,5:hicaz,4:ırak:acemaşiran:inici:evic:evic:Hicaz
+Isfahan:uşşak,4:buselik,5:dügah:rast:inici-çıkıcı:neva::Uşşak
+Tahir:uşşak,4:rast,5:dügah:rast:inici:muhayyer::Uşşak
+Irak:irak,4:uşşak,4@3+rast,5@6:ırak:acemaşiran:çıkıcı:dügah:evic:Segah
+Pençgah:rast,5:rast,4+buselik,4@5:rast:ırak:inici-çıkıcı:neva::Rast
+Şehnaz:hicaz,5:hicaz,4:dügah:nim zirgüle:inici:muhayyer::Hicaz
+Şevkefza:nikriz,5:hicaz,4:acemaşiran:hüseyni aşiran:inici:gerdaniye::Nikriz
+Ferahfeza:buselik,5:kürdi,4:yegah:kabanimhicaz:inici:acem::Buselik
+Bayatiaraban:uşşak,4:hicaz,5:dügah:rast:inici:muhayyer::Uşşak,Hicaz
+Yegah:rast,5:buselik,4+uşşak,4@5:yegah:kabanimhicaz:inici:neva::Rast
+Dügah:saba,4:hicaz,5@3+hicaz,4@7:dügah:rast:inici:çargah:şehnaz:Saba
+Zavil:çargah,5+nikriz,5@1:çargah,4:rast:geveşt:inici:gerdaniye::Çargah,Nikriz
+Nişaburek:rast,5:buselik,4:dügah:nim zirgüle:inici-çıkıcı:hüseyni::Rast
+Maye:uşşak,4:buselik,5+segah,5@2:dügah:rast:çıkıcı:neva::Uşşak,Segah
+Sazkar:rast,5:rast,4+buselik,4@5:rast:ırak:inici-çıkıcı:neva::Rast,Segah,Uşşak
+Rehavi:rast,5:rast,4+buselik,4@5:rast:ırak:çıkıcı:neva::Rast,Uşşak
+Dilkeside:buselik,5:kürdi,4:yegah:kabanimhicaz:inici:neva::Buselik

@@ -19,13 +19,16 @@ dinleyerek tahlil eden bir kütüphane ve araç seti.
 ## Klavye
 
 Satır = oktav, sütun = derece. Ana satırda `A` yeden, `S` durak; her makamda
-aynı. Normal modda tek satır, `F11` tam ekranda dört satır (41 tuş).
+aynı. `Q` satırı ara perdelerdir: her tuş, fizikî klavyede altına düşen iki
+ana tuşun arasındaki perdeyi çalar (`W` = `A`–`S` arası). Normal modda ana
+satır ve üstünde yalnız ara perdesi olan küçük tuşlar; `F11` tam ekranda
+rakamlar +1 oktav, `Q` ara perdeler, `A` ana, `Z` −1 oktav.
 
 | Tuş | İşlev |
 |---|---|
 | `F11` | Tam ekran / normal |
 | `<` / `>` | Izgarayı bir oktav aşağı / yukarı |
-| `Shift` (basılı) | Bütün perdeler +5 koma |
+| `Shift` (basılı) | Tuş, sağındaki ara perdeyi çalar (üst şeritte gösterilen); ara perde yoksa +5 koma |
 | `Ctrl` (basılı) | Bütün perdeler −5 koma |
 | `Alt+M` / `Alt+I` | Makam / saz seçimi |
 | `Alt+D` | Çapraz / düz düzen |

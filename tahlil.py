@@ -1038,9 +1038,15 @@ class TalimSekmesi(QWidget):
         self._skor_toplam = 0
         self.lbl_skor.setText('Skor: 0 / 0')
 
+    def _ikiz_gruplari(self):
+        gruplar = {}
+        for m in self.secili_makamlar:
+            gruplar.setdefault(self.naz.aile_temsilcisi(m), []).append(m)
+        return gruplar
+
     def _yeni_soru(self):
-        if len(self.secili_makamlar) < 4:
-            self.lbl_geri_bildirim.setText('En az 4 makam seçili olmalı.')
+        if len(self._ikiz_gruplari()) < 4:
+            self.lbl_geri_bildirim.setText('En az 4 makam seçili olmalı (dizi ikizleri bir sayılır).')
             return
         self._stop_cal()
         self.btn_yeni.setEnabled(False)
@@ -1080,7 +1086,9 @@ class TalimSekmesi(QWidget):
         if self._stop.is_set():
             return
 
-        yanlis_secim = [m for m in self.secili_makamlar if m != self._dogru_cevap]
+        gruplar = self._ikiz_gruplari()
+        gruplar.pop(self.naz.aile_temsilcisi(self._dogru_cevap), None)
+        yanlis_secim = [random.choice(g) for g in gruplar.values()]
         random.shuffle(yanlis_secim)
         secenekler = [self._dogru_cevap] + yanlis_secim[:3]
         random.shuffle(secenekler)
@@ -1109,12 +1117,14 @@ class TalimSekmesi(QWidget):
             elif b.text() == secim and secim != self._dogru_cevap:
                 b.setStyleSheet(b.styleSheet() + f"background:{C_RED}; color:#fff;")
 
+        ikizler = self.naz.dizi_ikizleri(self._dogru_cevap)
+        ek = f'  (dizi ikizi: {", ".join(ikizler)})' if ikizler else ''
         if secim == self._dogru_cevap:
             self._skor_dogru += 1
-            self.lbl_geri_bildirim.setText(f'✓  Doğru!  —  {self._dogru_cevap}')
+            self.lbl_geri_bildirim.setText(f'✓  Doğru!  —  {self._dogru_cevap}{ek}')
             self.lbl_geri_bildirim.setStyleSheet(f"color:{C_GREEN};font-size:16px;font-weight:bold;background:transparent;border:none;")
         else:
-            self.lbl_geri_bildirim.setText(f'✗  Yanlış.  Doğru cevap: {self._dogru_cevap}')
+            self.lbl_geri_bildirim.setText(f'✗  Yanlış.  Doğru cevap: {self._dogru_cevap}{ek}')
             self.lbl_geri_bildirim.setStyleSheet(f"color:{C_RED};font-size:16px;font-weight:bold;background:transparent;border:none;")
 
         self.lbl_skor.setText(f'Skor: {self._skor_dogru} / {self._skor_toplam}')
@@ -1367,6 +1377,9 @@ class AnaPencere(QMainWindow):
         self.lbl_makam_alt = etiket('', C_TXT3, 11)
         bb_lay.addWidget(self.lbl_makam_baslik)
         bb_lay.addWidget(self.lbl_makam_alt)
+        self.ikiz_lay = QHBoxLayout()
+        self.ikiz_lay.setSpacing(4)
+        bb_lay.addLayout(self.ikiz_lay)
         bb_lay.addStretch()
         sag_lay.addWidget(baslik_bar)
 
@@ -1418,8 +1431,32 @@ class AnaPencere(QMainWindow):
             self.lbl_makam_alt.setText(
                 f"  durak: {durak_isim}  ·  güçlü: {makam.güçlü}  ·  seyir: {seyir_ikon} {makam.seyir}"
             )
+            self._ikizleri_kur(isim)
         except Exception as e:
             print(f'Makam yüklenemedi ({isim}): {e}')
+
+    def _ikizleri_kur(self, isim):
+        while self.ikiz_lay.count():
+            w = self.ikiz_lay.takeAt(0).widget()
+            if w:
+                w.deleteLater()
+        ikizler = self.naz.dizi_ikizleri(isim)
+        if not ikizler:
+            return
+        self.ikiz_lay.addWidget(etiket('   dizi ikizi:', C_TXT3, 11))
+        for ikiz in ikizler:
+            b = buton(ikiz, C_PNL3, C_TXT, 'kucuk')
+            b.setCursor(Qt.PointingHandCursor)
+            b.clicked.connect(lambda _=False, m=ikiz: self._ikize_gec(m))
+            self.ikiz_lay.addWidget(b)
+
+    def _ikize_gec(self, isim):
+        liste = self.filtre.makam_listesi
+        for i in range(liste.count()):
+            if liste.item(i).text() == isim:
+                liste.setCurrentRow(i)
+                return
+        self._makam_degisti(isim)
 
     def _filtre_guncelle(self, liste):
         self.mukayese.makam_listesini_guncelle(liste)

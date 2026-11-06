@@ -82,6 +82,8 @@ def tasfiye(ibare):
 
 MAKAM_ONCELIK = ("Saba", "Uşşak", "Rast", "Segah", "Hicaz")
 AILE_ONCELIK = MAKAM_ONCELIK + ("Hüseyni", "Kürdi", "Sultaniyegah")
+MESHUR_PERDELER = ("acem", "kürdi", "hicaz", "hisar", "zirgüle", "çargah", "segâh", "buselik",
+                   "evic", "neva", "hüseyni", "dügâh", "rast", "gerdaniye", "şehnaz", "mahur")
 TR_ALFABE = "abcçdefgğhıijklmnoöprsştuüvyzqwx"
 
 
@@ -274,6 +276,50 @@ class Nazariyat():
         aralıklar = "".join(self.perdelerden_aralıklara(perdeler=perdeler))
         return perdeler, aralıklar, durak, yeden, güçlü, seyir
 
+    def dizi_ayir(self, isim):
+        alt, üst, durak = self.dizi.loc[self.dizi["isim"].apply(tasfiye) == tasfiye(isim), ["alt", "üst", "durak"]].values[0]
+        çeşniler = self.çeşni_çöz(alt) + self.çeşni_çöz(üst)
+        durak = self.isimden_perdeye(durak)
+        başlar, ana, alternatif = set(), {self.mutlak_koma(durak)}, set()
+        for i, (sifre, demir) in enumerate(çeşniler):
+            önceki = self.aralıklardan_perdelere(durak, *çeşniler[:i])[1]
+            perde = önceki[demir - 1] if demir else önceki[-1]
+            baş = self.mutlak_koma(perde)
+            komalar = set()
+            for k in sifre:
+                perde = self.koma_ekle(perde, self.koma[k.lower()])
+                komalar.add(self.mutlak_koma(self.adlıya_çek(perde)))
+            (alternatif if baş in başlar else ana).update(komalar)
+            başlar.add(baş)
+        perdeler = self.dizi_bul(isim)[0]
+        ayrık = [p for p in perdeler if self.mutlak_koma(p) in alternatif - ana]
+        return [p for p in perdeler if p not in ayrık], ayrık
+
+    def ara_perde(self, alt, üst, alternatif=()):
+        k1, k2 = self.mutlak_koma(alt), self.mutlak_koma(üst)
+        if alternatif:
+            for p in alternatif:
+                k = self.mutlak_koma(p)
+                j = (k1 - k) // 53 + 1
+                if k + 53 * j < k2:
+                    return self.koma_ekle(p, 53 * j)
+            return None
+        if k2 - k1 < 8:
+            return None
+        orta = (k1 + k2) / 2
+
+        def ün(a):
+            ad = str(self.komadan_isme[a]).strip()
+            return MESHUR_PERDELER.index(ad) if ad in MESHUR_PERDELER else len(MESHUR_PERDELER)
+
+        for kay in (0, -53, 53, -106, 106):
+            adaylar = [k for k in self.komadan_isme if k1 + kay < k < k2 + kay]
+            if adaylar:
+                k = min(adaylar, key=lambda a: (str(self.komadan_isme[a]).strip().startswith(("dik ", "nim ")),
+                                                abs(a - orta - kay), ün(a)))
+                return self.koma_ekle(self.isimden_perdeye(self.komadan_isme[k]), -kay)
+        return None
+
     def makam_sirasi(self):
         isimler = [str(i) for i in self.dizi["isim"]]
         oncelik = [i for i in MAKAM_ONCELIK if i in isimler]
@@ -305,9 +351,23 @@ class Nazariyat():
                 return temsilci
         return isim
 
+    def dizi_ikizleri(self, isim):
+        üyeler = self.makam_aileleri().get(self.aile_temsilcisi(isim), [])
+        return [u for u in üyeler if u != isim]
+
     def temsilciler_sirali(self):
         aileler = self.makam_aileleri()
         return [i for i in self.makam_sirasi() if i in aileler]
+
+    def govde_aileleri(self):
+        sira = self.makam_sirasi()
+        aileler = {}
+        for isim, aile in zip(self.dizi["isim"].astype(str), self.dizi["aile"].fillna("Diğer")):
+            for a in str(aile).split(","):
+                aileler.setdefault(a.strip(), []).append(isim)
+        konum = lambda a: (a == "Diğer", sira.index(a) if a in sira else len(sira))
+        return {a: sorted(üyeler, key=lambda i: (i != a, sira.index(i)))
+                for a, üyeler in sorted(aileler.items(), key=lambda t: konum(t[0]))}
 
 
 class Makam():

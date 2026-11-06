@@ -3,7 +3,7 @@ import threading
 from PySide6.QtWidgets import (QApplication, QWidget, QHBoxLayout, QVBoxLayout,
                                QPushButton, QLabel, QComboBox, QFrame)
 from PySide6.QtCore import Qt, QTimer, QSettings
-from PySide6.QtGui import QKeyEvent, QKeySequence, QShortcut
+from PySide6.QtGui import QFont, QKeyEvent, QKeySequence, QShortcut
 from nazariyat import seslendir, nota_baslat, Nazariyat, Makam, ses_kutuphanesi
 
 
@@ -18,6 +18,8 @@ IZGARA_SATIRLARI = [
     (list("ZXCVBNMÖÇ."),  -1),
 ]
 NORMAL_OKTAVLAR = (0,)
+ARA_SATIRI = 1
+SATIR_OKTAV = {2: 1, 0: 0, -1: -1}
 IZGARA_SUTUN = max(len(h) for h, _ in IZGARA_SATIRLARI)
 DERECE_OFSET = 1  # sütun 0 yedene ayrıldı, dereceler bir sağa kaydı
 SANAL_TUS = {"Ş": 0xBA, "İ": 0xDE}
@@ -75,6 +77,7 @@ class MusikiTusu(QPushButton):
         self.derece = derece
         self.taban_perde = "sol,0,0"
         self.tam_perde = "sol,0,0"
+        self.ara_perde = None
         self.rol = "normal"
         self._basili = False
         # Ölçek: 95x110 tuşta tam 1.0, büyük tuşlarda >1
@@ -115,7 +118,7 @@ class MusikiTusu(QPushButton):
 
     def _nota_rengi(self):
         t = self._t()
-        if self._koma():        return t["koma"]
+        if self._koma() or self.rol == "ara": return t["koma"]
         if self.rol == "durak": return t["durak_nota"]
         if self.rol == "gucu":  return t["gucu_nota"]
         if self.rol == "yeden": return t["yeden_nota"]
@@ -137,18 +140,30 @@ class MusikiTusu(QPushButton):
     def tusu_kur(self, taban_perde, rol="normal"):
         self.taban_perde = taban_perde
         self.rol = rol
+        self.setEnabled(True)
         self.perdeyi_tazele()
 
+    def bos(self):
+        self.taban_perde = self.tam_perde = None
+        self.rol = "normal"
+        self.setEnabled(False)
+        self.lbl_nota.setText("")
+        self.lbl_perde.setText("")
+        self._stil_guncelle()
+
     def perdeyi_tazele(self):
+        if self.taban_perde is None:
+            return
         k = self._koma()
-        self.tam_perde = komayla(self.taban_perde, k)
+        ara = k > 0 and self.ara_perde
+        self.tam_perde = self.ara_perde if ara else komayla(self.taban_perde, k)
         nota_adi = self.tam_perde.split(",")[0].capitalize()
         try:
             perde_ismi = self.ana_pencere.nazariyat.perdeden_isme(self.tam_perde)
         except Exception:
             perde_ismi = nota_adi
         maks_harf = max(4, self.width() // 7)
-        self.lbl_nota.setText(f"{nota_adi} {k:+d}" if k else nota_adi)
+        self.lbl_nota.setText(f"{nota_adi} {k:+d}" if k and not ara else nota_adi)
         self.lbl_perde.setText(perde_ismi[:maks_harf])
         if not self._basili:
             self._stil_guncelle()
@@ -158,6 +173,7 @@ class MusikiTusu(QPushButton):
         if self.rol == "durak":   bg, border = t["durak_bg"], t["durak_kenar"]
         elif self.rol == "gucu":  bg, border = t["gucu_bg"],  t["gucu_kenar"]
         elif self.rol == "yeden": bg, border = t["yeden_bg"], t["yeden_kenar"]
+        elif self.rol == "ara":   bg, border = t["tus_bg"],   t["koma"]
         else:                     bg, border = t["tus_bg"],   t["tus_kenar"]
         if self._koma():
             border = t["koma"]
@@ -176,6 +192,8 @@ class MusikiTusu(QPushButton):
                 f"border:3px solid {border};border-radius:10px;}}")
 
     def bas(self):
+        if self.taban_perde is None:
+            return
         self._basili = True
         self.setStyleSheet(self._basili_stil())
         self.lbl_nota.setStyleSheet(
@@ -198,6 +216,8 @@ class MusikiTusu(QPushButton):
         self._stop_event.set()
 
     def cal(self):
+        if self.taban_perde is None:
+            return
         alet = self.ana_pencere.secili_alet_kodu()
         threading.Thread(target=self._seslendir_wrapper,
                          args=(alet,
@@ -292,15 +312,13 @@ class AnaPencere(QWidget):
             self.combo_duzen.setCurrentIndex(idx)
 
         makam = self.ayarlar.value("makam", "Rast")
-        try:
-            temsilci = self.nazariyat.aile_temsilcisi(makam)
-        except Exception:
-            temsilci = makam
-        idx = self.combo_makam.findText(temsilci)
+        idx = self.combo_makam.findData(makam)
+        if idx < 0:
+            idx = self.combo_makam.findData("Rast")
         if idx >= 0:
             self.combo_makam.setCurrentIndex(idx)
-        self._aktif_makam = makam if idx >= 0 else self.combo_makam.currentText()
-        self._aile_seridini_kur(self.combo_makam.currentText())
+        self._aktif_makam = self.combo_makam.currentData()
+        self._aile_seridini_kur(self._aktif_makam)
         self._yukleniyor = False
 
     def meclis_kur(self):
@@ -344,7 +362,7 @@ class AnaPencere(QWidget):
         self.combo_makam = QComboBox()
         self.combo_makam.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         if self.nazariyat and hasattr(self.nazariyat, "dizi"):
-            self.combo_makam.addItems(self.nazariyat.temsilciler_sirali())
+            self._makam_listesini_kur()
         self.combo_makam.currentIndexChanged.connect(self._temsilci_degisti)
 
         self.aile_serit = QFrame()
@@ -419,8 +437,12 @@ class AnaPencere(QWidget):
 
     def _tus_olcusu(self, satir_sayisi):
         avail_w = self.width() - 40
+        kacik = 0.0
+        if self._capraz_mi():
+            ofsetler = [CAPRAZ_OFSET.get(o, 0.0) for _, o in self._gorunur_satirlar()]
+            kacik = max(ofsetler) - min(ofsetler)
         if avail_w > 10:
-            kw = int((avail_w - (IZGARA_SUTUN - 1) * TUS_ARALIK) / IZGARA_SUTUN)
+            kw = int((avail_w - (IZGARA_SUTUN - 1 + kacik) * TUS_ARALIK) / (IZGARA_SUTUN + kacik))
         else:
             kw = MAX_TUS_W
         if not self._tam_ekran:
@@ -469,10 +491,13 @@ class AnaPencere(QWidget):
             satir = QHBoxLayout()
             satir.setSpacing(TUS_ARALIK)
             satir.setContentsMargins(0, 0, 0, 0)
+            kacik = 0
             if capraz:
-                kacik = (CAPRAZ_OFSET.get(oktav, 0.0) - taban) * (kw + TUS_ARALIK)
+                kacik = int((CAPRAZ_OFSET.get(oktav, 0.0) - taban) * (kw + TUS_ARALIK))
                 if kacik >= 1:
-                    satir.addSpacing(int(kacik))
+                    satir.addSpacing(kacik)
+            if oktav == 0 and not self._tam_ekran:
+                yigin.addWidget(self._ara_seridi_kur(yeni, kacik, kw, kh), 0, Qt.AlignmentFlag.AlignLeft)
             for c, harf in enumerate(harfler):
                 tus = MusikiTusu(harf, kw, kh, ana_pencere=self,
                                  oktav=oktav, derece=c, parent=yeni)
@@ -485,6 +510,18 @@ class AnaPencere(QWidget):
         dis.addStretch()
         self._tus_paneli_degistir(yeni)
         self.makam_degisti()
+
+    def _ara_seridi_kur(self, ebeveyn, kacik, kw, kh):
+        harfler = next(h for h, o in IZGARA_SATIRLARI if o == ARA_SATIRI)
+        bw, bh = int(kw * 0.62), int(kh * 0.5)
+        serit = QWidget(ebeveyn)
+        serit.setFixedSize(kacik + IZGARA_SUTUN * (kw + TUS_ARALIK), bh)
+        for c, harf in enumerate(harfler[1:], 1):
+            tus = MusikiTusu(harf, bw, bh, ana_pencere=self,
+                             oktav=ARA_SATIRI, derece=c, parent=serit)
+            tus.move(kacik + c * (kw + TUS_ARALIK) - TUS_ARALIK // 2 - bw // 2, 0)
+            self.tus_sozlugu[SANAL_TUS.get(harf, ord(harf))] = tus
+        return serit
 
     def _klavyeyi_yenile(self):
         self._klavyeyi_kur()
@@ -560,18 +597,32 @@ class AnaPencere(QWidget):
             return self._kaydir(yeden_perde, oktav * cevrim)
         return self._derece_perdesi(cetvel, cevrim, oktav, sutun - DERECE_OFSET)
 
-    def _aile_uyeleri(self, temsilci):
-        try:
-            return self.nazariyat.makam_aileleri().get(temsilci, [temsilci])
-        except Exception:
-            return [temsilci]
+    def _makam_listesini_kur(self):
+        model = self.combo_makam.model()
+        kalin = QFont()
+        kalin.setBold(True)
+        for aile, üyeler in self.nazariyat.govde_aileleri().items():
+            self.combo_makam.addItem(f"{aile} ailesi")
+            baslik = model.item(self.combo_makam.count() - 1)
+            baslik.setEnabled(False)
+            baslik.setFont(kalin)
+            for isim in üyeler:
+                self.combo_makam.addItem(f"   {isim}", isim)
+        self.combo_makam.setCurrentIndex(1)
 
-    def _aile_seridini_kur(self, temsilci):
+    def _aile_uyeleri(self, makam):
+        try:
+            temsilci = self.nazariyat.aile_temsilcisi(makam)
+            return self.nazariyat.makam_aileleri().get(temsilci, [makam])
+        except Exception:
+            return [makam]
+
+    def _aile_seridini_kur(self, makam):
         for rozet in self.aile_rozetleri.values():
             self.aile_layout.removeWidget(rozet)
             rozet.deleteLater()
         self.aile_rozetleri = {}
-        üyeler = self._aile_uyeleri(temsilci)
+        üyeler = self._aile_uyeleri(makam)
         self.aile_serit.setHidden(len(üyeler) < 2)
         if len(üyeler) < 2:
             return
@@ -597,25 +648,28 @@ class AnaPencere(QWidget):
                 f"QPushButton:hover{{border:1px solid {t['gucu_kenar']};}}")
 
     def _temsilci_degisti(self):
-        temsilci = self.combo_makam.currentText()
-        self._aktif_makam = temsilci
-        self._aile_seridini_kur(temsilci)
+        makam = self.combo_makam.currentData()
+        if not makam:
+            return
+        self._aktif_makam = makam
+        self._aile_seridini_kur(makam)
         self.makam_degisti()
 
     def _aile_uyesi_sec(self, isim):
-        self._aktif_makam = isim
-        self._rozetleri_boya()
-        self.makam_degisti()
+        idx = self.combo_makam.findData(isim)
+        if idx >= 0:
+            self.combo_makam.setCurrentIndex(idx)
 
     def makam_degisti(self):
-        secilen = self._aktif_makam or self.combo_makam.currentText()
+        secilen = self._aktif_makam or self.combo_makam.currentData()
         if not secilen or not self.tus_sozlugu:
             return
         try:
             makam = Makam(isim=secilen, nazariyat=self.nazariyat)
             if not makam.perdeler:
                 return
-            cetvel, cevrim = self._derece_cetveli(makam.perdeler)
+            ana, alternatif = self.nazariyat.dizi_ayir(secilen)
+            cetvel, cevrim = self._derece_cetveli(ana)
             try:
                 gucu_base = perde_base(self.nazariyat.isimden_perdeye(makam.güçlü))
                 durak_base = perde_base(self.nazariyat.isimden_perdeye(makam.durak))
@@ -628,14 +682,30 @@ class AnaPencere(QWidget):
             yeden_base = perde_base(yeden_perde)
 
             for tus in self.tus_sozlugu.values():
+                if tus.oktav == ARA_SATIRI:
+                    o = self.oktav_kaydirma
+                    ara = self.nazariyat.ara_perde(
+                        self._sutun_perdesi(cetvel, cevrim, yeden_perde, o, tus.derece - 1),
+                        self._sutun_perdesi(cetvel, cevrim, yeden_perde, o, tus.derece),
+                        alternatif)
+                    if ara:
+                        tus.tusu_kur(ara, "ara")
+                    else:
+                        tus.bos()
+                    if not self._tam_ekran:
+                        tus.setVisible(bool(ara))
+                    continue
+                oktav = SATIR_OKTAV.get(tus.oktav, tus.oktav) + self.oktav_kaydirma
                 perde = self._sutun_perdesi(
-                    cetvel, cevrim, yeden_perde,
-                    tus.oktav + self.oktav_kaydirma, tus.derece)
+                    cetvel, cevrim, yeden_perde, oktav, tus.derece)
                 pb = perde_base(perde)
                 if pb == durak_base:     rol = "durak"
                 elif pb == gucu_base:    rol = "gucu"
                 elif pb == yeden_base:   rol = "yeden"
                 else:                    rol = "normal"
+                sonraki = self._sutun_perdesi(
+                    cetvel, cevrim, yeden_perde, oktav, tus.derece + 1)
+                tus.ara_perde = self.nazariyat.ara_perde(perde, sonraki, alternatif)
                 tus.tusu_kur(perde, rol)
         except Exception as e:
             print(f"Makam teskilati hatasi: {e}")
@@ -708,9 +778,14 @@ class AnaPencere(QWidget):
         if key == Qt.Key.Key_F11:
             self._tam_ekran = not self._tam_ekran
             if self._tam_ekran:
+                self._normal_geometri = self.saveGeometry()
                 self.showFullScreen()
             else:
+                self._klavyeyi_kur()
                 self.showNormal()
+                geometri = getattr(self, "_normal_geometri", None)
+                if geometri is not None:
+                    QTimer.singleShot(0, lambda: self.restoreGeometry(geometri))
             return
         if key == Qt.Key.Key_Less:
             self._oktav_kaydir(-1)

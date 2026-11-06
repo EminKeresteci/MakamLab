@@ -1,33 +1,36 @@
 # Makam aileleri
 
 Kaynak: TDV İslâm Ansiklopedisi (`https://islamansiklopedisi.org.tr/<adres>`),
-2026-10-06 taraması. `dizi.txt`'teki 40 makam.
+2026-10-06 taraması; sonradan eklenen makamlar aşağıdaki tabloda yok.
 
 **Güvenilirlik.** Kelimesi kelimesine teyit edilenler: Kürdî, Hüseynî, Muhayyer,
 Rast, Nihâvend, Acem ve "Hicaz ailesi" tabiri. Kalan satırlar maddenin
 özetidir: gövde, güçlü, seyir güvenilir; **tasnif ve geçki sütunları teyitsiz.**
 TDV "mürekkeb" yerine "birleşik" der. "—" kaynağın söylemediğini gösterir.
 
-Not: `nazariyat.makam_aileleri()` aynı **perdeleri** paylaşanları gruplar;
-buradaki aileler aynı **gövdeyi** paylaşanlardır. Nevâ perdece Hüseynî'yle
-aynı, gövdece Uşşak ailesindendir.
+Not: `nazariyat.makam_aileleri()` aynı **perdeleri** paylaşanları gruplar
+(klavyedeki ikiz rozetleri); buradaki aileler aynı **gövdeyi** paylaşanlardır.
+Nevâ perdece Hüseynî'yle aynı, gövdece Uşşak ailesindendir.
 
 ## Aileler (gövdeye göre)
 
+Kodun okuduğu yer `dizi.txt`'in `aile` sütunudur (aile adı baş makamın adı,
+çok üyelik virgülle); bu tablo onun gerekçesidir, ikisi birlikte değişir.
+`*` TDV'den değil, gövdeden çıkarım (bu tablodan sonra eklenen makamlar).
+
 | aile | gövde | üyeler |
 |---|---|---|
-| Rast | rastta rast beşlisi | Rast, Sûzinâk; Gerdâniye üstünde Rast dizisini taşır |
-| Uşşak | dügâhta uşşak dörtlüsü | Uşşak, Bayâtî (aynı dizi), Nevâ, Karcığar; Arazbâr ve Acem yalnız kararda |
+| Rast | rastta rast beşlisi | Rast, Sûzinâk, Zencîrân, Pençgâh\*, Yegâh\*; Gerdâniye üstünde Rast dizisini taşır |
+| Uşşak | dügâhta uşşak dörtlüsü | Uşşak, Bayâtî (aynı dizi), Nevâ, Karcığar, Isfahan\*, Tâhir\*, Bayâtîarabân\*; Arazbâr ve Acem yalnız kararda |
 | Hüseynî | dügâhta hüseynî beşlisi + hüseynîde uşşak | Hüseynî, Muhayyer, Gülizâr; Muhayyerkürdî, Hisar, Gerdâniye bu diziyi içerir |
-| Hicaz | dügâhta hicaz | Hicaz, Hümâyun, Uzzâl, Zirgüleli Hicaz (TDV'nin "Hicaz ailesi") |
-| Zirgüleli Hicaz şedleri | zirgüleli hicaz başka perdede | Hicazkâr (rast), Şedarabân (yegâh), Sûzidil (hüseynî aşiran), Evcârâ (ırak) |
-| Nikrîz | rastta nikriz beşlisi | Nikrîz, Neveser |
-| Bûselik | bûselik beşlisi | Bûselik, Nihâvend (rast), Sultânîyegâh (yegâh) |
-| Kürdî | dügâhta kürdî dörtlüsü | Kürdî, Kürdîlihicazkâr (rastta şed) |
+| Hicaz | dügâhta hicaz; zirgüleli hicazın şedleri başka perdede | Hicaz, Hümâyun, Uzzâl, Zirgüleli Hicaz (TDV'nin "Hicaz ailesi"); Şehnaz ("bu ailenin donanımı"), Hicazkâr (rast), Şedarabân (yegâh), Sûzidil (hüseynî aşiran), Evcârâ (ırak); Sûzinâk, Karcığar, Bayâtîarabân\* hicaz çeşnisiyle |
+| Nikrîz | nikriz beşlisi | Nikrîz, Neveser, Şevkefzâ\* |
+| Bûselik | bûselik beşlisi | Bûselik, Nihâvend (rast), Sultânîyegâh (yegâh), Ferahfezâ |
+| Kürdî | dügâhta kürdî dörtlüsü | Kürdî, Kürdîlihicazkâr (rastta şed), Muhayyerkürdî |
 | Çârgâh | çârgâh beşlisi | Çârgâh, Mâhur (rast), Acem (acem), Acemaşîran |
-| Segâh | segâhta segâh/hüzzam beşlisi | Segâh, Hüzzâm, Müsteâr; Eviç eksik segâh beşlisiyle |
+| Segâh | segâhta segâh/hüzzam beşlisi | Segâh, Hüzzâm, Müsteâr; Eviç eksik segâh beşlisiyle, Irak\* |
 | Sabâ | dügâhta sabâ dörtlüsü | Sabâ, Bestenigâr |
-| Hiçbiri | | Ferahnâk, Arazbâr (çârgâhta rast beşlisi + karcığarlı karar), Zencîrân (TDV'de madde yok) |
+| Diğer | | Ferahnâk, Arazbâr (çârgâhta rast beşlisi + karcığarlı karar) |
 
 Nihâvend Rast ailesinden **değildir**: "bûselik makamı dizisinin rast perdesine
 göçürülmesiyle elde edilmiş". Acem'in gövdesi çârgâhtır: "acem perdesi
