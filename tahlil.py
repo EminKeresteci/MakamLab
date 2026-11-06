@@ -1,4 +1,4 @@
-import sys, threading, random, time
+import sys, os, subprocess, threading, random, time
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QGridLayout, QLabel, QPushButton, QComboBox, QListWidget,
@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QTimer, QRectF, QPointF, QSize
 from PySide6.QtGui import (
     QPainter, QColor, QPen, QBrush, QFont, QLinearGradient,
-    QFontMetrics, QPainterPath, QKeyEvent
+    QFontMetrics, QPainterPath, QKeyEvent, QKeySequence, QShortcut
 )
 
 try:
@@ -1381,6 +1381,10 @@ class AnaPencere(QMainWindow):
         self.ikiz_lay.setSpacing(4)
         bb_lay.addLayout(self.ikiz_lay)
         bb_lay.addStretch()
+        btn_klavye = buton('🎹 Klavye  (Ctrl+K)', C_PNL3, C_GOLD, 'kucuk')
+        btn_klavye.setCursor(Qt.PointingHandCursor)
+        btn_klavye.clicked.connect(self._klavye_ac)
+        bb_lay.addWidget(btn_klavye)
         sag_lay.addWidget(baslik_bar)
 
         tum_makamlar = self.naz.dizi['isim'].tolist()
@@ -1410,6 +1414,7 @@ class AnaPencere(QMainWindow):
 
         self.filtre.makam_secildi.connect(self._makam_degisti)
         self.filtre.filtre_degisti.connect(self._filtre_guncelle)
+        QShortcut(QKeySequence("Ctrl+K"), self).activated.connect(self._klavye_ac)
 
         if tum_makamlar:
             self.filtre.makam_listesi.setCurrentRow(0)
@@ -1457,6 +1462,14 @@ class AnaPencere(QMainWindow):
                 liste.setCurrentRow(i)
                 return
         self._makam_degisti(isim)
+
+    def _klavye_ac(self):
+        isim = self.lbl_makam_baslik.text()
+        dizin = os.path.dirname(os.path.abspath(__file__))
+        args = [sys.executable, os.path.join(dizin, 'klavye.py')]
+        if isim and isim != '—':
+            args.append(isim)
+        subprocess.Popen(args, cwd=dizin)
 
     def _filtre_guncelle(self, liste):
         self.mukayese.makam_listesini_guncelle(liste)

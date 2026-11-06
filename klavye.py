@@ -245,8 +245,9 @@ class MusikiTusu(QPushButton):
 
 
 class AnaPencere(QWidget):
-    def __init__(self):
+    def __init__(self, acilis_makami=None):
         super().__init__()
+        self._acilis_makami = acilis_makami
         self.setWindowTitle("Sebeke-i Musiki")
         self.tus_sozlugu = {}
         self.tus_paneli = QFrame()
@@ -311,7 +312,7 @@ class AnaPencere(QWidget):
         if idx >= 0:
             self.combo_duzen.setCurrentIndex(idx)
 
-        makam = self.ayarlar.value("makam", "Rast")
+        makam = self._acilis_makami or self.ayarlar.value("makam", "Rast")
         idx = self.combo_makam.findData(makam)
         if idx < 0:
             idx = self.combo_makam.findData("Rast")
@@ -810,6 +811,6 @@ class AnaPencere(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    pencere = AnaPencere()
+    pencere = AnaPencere(sys.argv[1] if len(sys.argv) > 1 else None)
     pencere.show()
     sys.exit(app.exec())
