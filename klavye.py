@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (QApplication, QWidget, QHBoxLayout, QVBoxLayout,
                                QPushButton, QLabel, QComboBox, QFrame)
 from PySide6.QtCore import Qt, QTimer, QSettings
 from PySide6.QtGui import QFont, QKeyEvent, QKeySequence, QShortcut
-from nazariyat import seslendir, nota_baslat, Nazariyat, Makam, ses_kutuphanesi
+from nazariyat import seslendir, nota_baslat, perde_midi, Nazariyat, Makam, ses_kutuphanesi
 
 
 from tema import TEMALAR
@@ -202,6 +202,9 @@ class MusikiTusu(QPushButton):
         self._stop_event.set()
         self._stop_event = threading.Event()
         alet = self.ana_pencere.secili_alet_kodu()
+        if alet == SENTEZ_NEY:
+            self._ney_bas()
+            return
         meclis = self.ana_pencere.meclis_getir()
         enstruman = self.ana_pencere.enstruman_getir(alet)
         naz = self.ana_pencere.nazariyat
@@ -214,11 +217,24 @@ class MusikiTusu(QPushButton):
         self._basili = False
         self.perdeyi_tazele()
         self._stop_event.set()
+        if self.ana_pencere.canli_ney is not None:
+            self.ana_pencere.canli_ney.birak(id(self))
+
+    def _ney_bas(self):
+        ney = self.ana_pencere.canli_ney_getir()
+        if ney is not None:
+            ney.bas(id(self), perde_midi(self.tam_perde, nazariyat=self.ana_pencere.nazariyat))
+        return ney
 
     def cal(self):
         if self.taban_perde is None:
             return
         alet = self.ana_pencere.secili_alet_kodu()
+        if alet == SENTEZ_NEY:
+            ney = self._ney_bas()
+            if ney is not None:
+                QTimer.singleShot(500, lambda: ney.birak(id(self)))
+            return
         threading.Thread(target=self._seslendir_wrapper,
                          args=(alet,
                                self.ana_pencere.meclis_getir(),
@@ -244,6 +260,9 @@ class MusikiTusu(QPushButton):
             print(f"Icra hatasi: {e}")
 
 
+SENTEZ_NEY = -1
+
+
 class AnaPencere(QWidget):
     def __init__(self, acilis_makami=None):
         super().__init__()
@@ -254,6 +273,7 @@ class AnaPencere(QWidget):
         self.daimi_meclis = None
         self.aktif_enstruman = None
         self.aktif_alet_kodu = None
+        self.canli_ney = None
         self.aktif_tema = TEMALAR["Celik"]
         self._aktif_makam = None
         self._yukleniyor = False
@@ -280,7 +300,7 @@ class AnaPencere(QWidget):
             "Keman": 40, "Viyola": 41, "Kemençe": 110,
             "Çello": 42, "Kontrbas": 43, "Yaylı Takım": 48,
             # Nefesli
-            "Ney": 77, "Flüt": 73, "Mıskal": 75, "Zurna": 68,
+            "Ney": 77, "Ney (sentez)": SENTEZ_NEY, "Flüt": 73, "Mıskal": 75, "Zurna": 68,
             "Girift": 72, "Mey": 69, "Klarnet": 71, "Kaval": 74,
         }
 
@@ -333,6 +353,22 @@ class AnaPencere(QWidget):
 
     def meclis_getir(self):
         return self.daimi_meclis
+
+    def canli_ney_getir(self):
+        if self.canli_ney is None:
+            try:
+                from ney import CanliNey
+                motor = CanliNey()
+                motor.ac()
+                self.canli_ney = motor
+            except Exception as e:
+                print(f"Ney sentezi acilamadi: {e}")
+        return self.canli_ney
+
+    def closeEvent(self, olay):
+        if self.canli_ney is not None:
+            self.canli_ney.kapat()
+        super().closeEvent(olay)
 
     def enstruman_getir(self, alet_kodu):
         if self.aktif_enstruman is None or self.aktif_alet_kodu != alet_kodu:
@@ -572,6 +608,8 @@ class AnaPencere(QWidget):
         return self.enstrumanlar.get(self.combo_alet.currentText(), 0)
 
     def _alet_degisti(self):
+        if self.canli_ney is not None:
+            self.canli_ney.sus()
         self.aktif_enstruman = None
         self.aktif_alet_kodu = None
         self.ayarlar.setValue("saz", self.combo_alet.currentText())
