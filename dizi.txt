@@ -1,6 +1,6 @@
 isim:alt:üst:durak:yeden:seyir:güçlü:tiz:aile
 Çargah:çargah,5:çargah,4:çargah:buselik:çıkıcı:gerdaniye::Çargah
-Buselik:buselik,5:hicaz,4:dügah:nim zirgüle:çıkıcı:hüseyni::Buselik
+Buselik:buselik,5:kürdi,4+hicaz,4@5:dügah:nim zirgüle:çıkıcı:hüseyni::Buselik
 Kürdi:kürdi,4:buselik,5:dügah:rast:çıkıcı:neva::Kürdi
 Rast:rast,5:rast,4:rast:ırak:çıkıcı:neva::Rast
 Uşşak:uşşak,4:buselik,5:dügah:rast:çıkıcı:neva::Uşşak
