@@ -1,10 +1,10 @@
-import sys, os, subprocess, threading, random, time
+import sys, os, subprocess, threading, random, time, math, statistics
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QGridLayout, QLabel, QPushButton, QComboBox, QListWidget,
     QListWidgetItem, QTabWidget, QFrame, QSplitter, QScrollArea,
     QGroupBox, QSlider, QLineEdit, QSizePolicy, QSpacerItem,
-    QRadioButton, QButtonGroup
+    QRadioButton, QButtonGroup, QCheckBox
 )
 from PySide6.QtCore import Qt, Signal, QTimer, QRectF, QPointF, QSize
 from PySide6.QtGui import (
@@ -13,10 +13,42 @@ from PySide6.QtGui import (
 )
 
 try:
-    from nazariyat import Nazariyat, Makam, seslendir, nota_baslat, ses_kutuphanesi
+    from nazariyat import Nazariyat, Makam, seslendir, nota_baslat, ses_kutuphanesi, perde_midi
 except ImportError as e:
     print(f"nazariyat bulunamadı: {e}")
     sys.exit(1)
+
+
+_ORTAK_NEY = None
+_NEY_KILIT = threading.Lock()
+
+
+def ortak_ney():
+    global _ORTAK_NEY
+    with _NEY_KILIT:
+        if _ORTAK_NEY is None:
+            try:
+                from ney import CanliNey
+                _ORTAK_NEY = CanliNey()
+                _ORTAK_NEY.ac()
+            except Exception as e:
+                print(f"Ney sentezi açılamadı: {e}")
+                _ORTAK_NEY = False
+        return _ORTAK_NEY or None
+
+
+def ney_cal(prd, duration, session=None, instrument=None, nazariyat=None):
+    ney = ortak_ney()
+    if ney is None:
+        seslendir(prd, duration=duration, session=session,
+                  instrument=instrument, nazariyat=nazariyat)
+        return
+    if ',' not in prd:
+        prd = nazariyat.isimden_perdeye(prd)
+    anahtar = ('cal', threading.get_ident())
+    ney.bas(anahtar, perde_midi(prd, nazariyat=nazariyat))
+    time.sleep(duration)
+    ney.birak(anahtar)
 
 
 C_BG     = '#1a2327'
@@ -509,7 +541,7 @@ class AnalizSekmesi(QWidget):
                 self.makam.perdeler.index(prd) if prd in self.makam.perdeler else -1
             )
             try:
-                seslendir(prd, duration=sure, session=self.meclis,
+                ney_cal(prd, duration=sure, session=self.meclis,
                           instrument=ens, nazariyat=self.naz)
             except Exception as e:
                 print(f"Çalma hatası: {e}")
@@ -603,7 +635,7 @@ class MakamKarti(QFrame):
                 break
             self.diyagram.aktif_goster(i)
             try:
-                seslendir(prd, duration=sure, session=self.meclis,
+                ney_cal(prd, duration=sure, session=self.meclis,
                           instrument=ens, nazariyat=self.naz)
             except Exception as e:
                 print(f"Kart çalma hatası: {e}")
@@ -870,7 +902,7 @@ class MukayeseSekmesi(QWidget):
                     break
                 kart.diyagram.aktif_goster(i)
                 try:
-                    seslendir(prd, duration=sure, session=self.meclis,
+                    ney_cal(prd, duration=sure, session=self.meclis,
                               instrument=ens, nazariyat=self.naz)
                 except Exception as e:
                     print(f"Sırayla çalma hatası: {e}")
@@ -879,6 +911,517 @@ class MukayeseSekmesi(QWidget):
                 time.sleep(0.4)
         self.btn_dur_hepsi.setEnabled(False)
         self.btn_sirayla.setEnabled(True)
+
+
+class SapmaGostergesi(QWidget):
+    ARALIK = 6
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(50)
+        self.sapma = None
+        self.tolerans = 2.0
+
+    def kur(self, sapma, tolerans=None):
+        self.sapma = sapma
+        if tolerans is not None:
+            self.tolerans = tolerans
+        self.update()
+
+    def paintEvent(self, e):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        x0, x1 = 44, self.width() - 44
+        orta = (x0 + x1) / 2
+        olcek = (x1 - x0) / (2 * self.ARALIK)
+        y = 18
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor(C_PNL3))
+        p.drawRoundedRect(QRectF(x0, y - 4, x1 - x0, 8), 4, 4)
+        t = self.tolerans * olcek
+        p.setBrush(QColor(C_GREEN).darker(170))
+        p.drawRoundedRect(QRectF(orta - t, y - 4, 2 * t, 8), 4, 4)
+        p.setFont(QFont('', 8))
+        p.setPen(QColor(C_TXT3))
+        for k in range(-self.ARALIK, self.ARALIK + 1, 2):
+            x = orta + k * olcek
+            p.drawLine(QPointF(x, y + 7), QPointF(x, y + 11))
+            p.drawText(QRectF(x - 14, y + 12, 28, 14), Qt.AlignCenter, f'{k:+d}' if k else '0')
+        p.drawText(QRectF(0, y - 8, x0 - 12, 16), Qt.AlignRight | Qt.AlignVCenter, 'pes')
+        p.drawText(QRectF(x1 + 12, y - 8, 30, 16), Qt.AlignLeft | Qt.AlignVCenter, 'tiz')
+        if self.sapma is not None:
+            s = max(-self.ARALIK, min(self.ARALIK, self.sapma))
+            m = abs(self.sapma)
+            renk = C_GREEN if m <= self.tolerans else C_GOLD if m <= 2 * self.tolerans else C_RED
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(renk))
+            p.drawEllipse(QPointF(orta + s * olcek, y), 8, 8)
+        p.end()
+
+
+class SolfejSekmesi(QWidget):
+    KIPLER = ['Söyle (perde adı görünür)', 'Dinle, tanı', 'Dinle, söyle']
+    SABIT_OLCUM = 14
+    SABIT_YAYILIM = 2.5
+    ZAMAN_ASIMI = 12000
+    calma_bitti = Signal()
+
+    def __init__(self, talim, makam_listesi, parent=None):
+        super().__init__(parent)
+        self.talim = talim
+        self.naz = talim.naz
+        self.makam = None
+        self.hedef = None
+        self.dinleyici = None
+        self.ney = None
+        self.dinliyor = False
+        self.cevaplandi = True
+        self.olcumler = []
+        self.ham = []
+        self.sessiz = 0
+        self._dinle_basi = 0.0
+        self.dogru = 0
+        self.toplam = 0
+        self.perde_butonlari = []
+        self._stop = threading.Event()
+        self.zaman = QTimer(self)
+        self.zaman.setSingleShot(True)
+        self.zaman.timeout.connect(self._zaman_asti)
+        self.gecis = QTimer(self)
+        self.gecis.setSingleShot(True)
+        self.gecis.timeout.connect(lambda: self._yeni(ayni=self._tekrar_sor))
+        self._tekrar_sor = False
+        self.calma_bitti.connect(self._calma_bitince)
+        self.setStyleSheet(f"background:{C_PNL};")
+        self._kurulum(makam_listesi)
+
+    def _kurulum(self, makam_listesi):
+        kombo_css = f"QComboBox{{background:{C_PNL3};color:{C_TXT};padding:4px;border-radius:4px;font-size:12px;}}QComboBox::drop-down{{border:0;}}"
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(20, 16, 20, 16)
+        lay.setSpacing(12)
+
+        ust = QHBoxLayout()
+        ust.addWidget(etiket('Makam:', C_TXT2, 12))
+        self.combo_makam = QComboBox()
+        self.combo_makam.addItems(makam_listesi)
+        self.combo_makam.setStyleSheet(kombo_css)
+        ust.addWidget(self.combo_makam)
+        ust.addWidget(etiket('Kip:', C_TXT2, 12))
+        self.combo_kip = QComboBox()
+        self.combo_kip.addItems(self.KIPLER)
+        self.combo_kip.setStyleSheet(kombo_css)
+        ust.addWidget(self.combo_kip)
+        ust.addWidget(etiket('Perde:', C_TXT2, 12))
+        self.combo_sira = QComboBox()
+        self.combo_sira.addItems(['Sırayla', 'Sabit (seçtiğim)', 'Rastgele'])
+        self.combo_sira.setStyleSheet(kombo_css)
+        ust.addWidget(self.combo_sira)
+        ust.addWidget(etiket('Hoşgörü:', C_TXT2, 12))
+        self.combo_tol = QComboBox()
+        self.combo_tol.addItems(['±1 koma', '±2 koma', '±3 koma'])
+        self.combo_tol.setCurrentIndex(1)
+        self.combo_tol.setStyleSheet(kombo_css)
+        ust.addWidget(self.combo_tol)
+        ust.addWidget(etiket('Ses:', C_TXT2, 12))
+        self.combo_ses = QComboBox()
+        self.combo_ses.addItems(['Sazlar (SoundFont)', 'Ney (sentez)'])
+        self.combo_ses.setStyleSheet(kombo_css)
+        ust.addWidget(self.combo_ses)
+        self.chk_tekrar = QCheckBox('Yanlışta tekrarla')
+        self.chk_tekrar.setStyleSheet(f"color:{C_TXT2};font-size:12px;")
+        ust.addWidget(self.chk_tekrar)
+        ust.addStretch()
+        self.lbl_skor = etiket('Skor: 0 / 0', C_TXT2, 12)
+        ust.addWidget(self.lbl_skor)
+        btn_sifirla = buton('Sıfırla', C_PNL3, C_TXT, 'kucuk')
+        ust.addWidget(btn_sifirla)
+        lay.addLayout(ust)
+
+        cal = QHBoxLayout()
+        cal.addStretch()
+        self.btn_yeni = buton('▶  Yeni', C_BLUE, '#000', 'buyuk')
+        self.btn_tekrar = buton('↺  Tekrar Dinle', C_PNL3, C_TXT, 'kucuk')
+        self.btn_durak = buton('♪  Durak', C_PNL3, C_TXT, 'kucuk')
+        for b in (self.btn_yeni, self.btn_tekrar, self.btn_durak):
+            cal.addWidget(b)
+        cal.addStretch()
+        lay.addLayout(cal)
+
+        self.lbl_soru = etiket('', C_GOLD, 24, kalin=True)
+        self.lbl_soru.setAlignment(Qt.AlignCenter)
+        self.lbl_ayrinti = etiket('', C_TXT2, 13)
+        self.lbl_ayrinti.setAlignment(Qt.AlignCenter)
+        self.lbl_ayrinti.setWordWrap(True)
+        lay.addWidget(self.lbl_soru)
+        lay.addWidget(self.lbl_ayrinti)
+
+        self.gosterge = SapmaGostergesi()
+        lay.addWidget(self.gosterge)
+
+        self.perde_grid = QGridLayout()
+        self.perde_grid.setSpacing(6)
+        lay.addLayout(self.perde_grid)
+
+        self.lbl_geri = etiket('', C_TXT, 15, kalin=True)
+        self.lbl_geri.setAlignment(Qt.AlignCenter)
+        self.lbl_geri.setWordWrap(True)
+        lay.addWidget(self.lbl_geri)
+        lay.addStretch()
+
+        btn_sifirla.clicked.connect(self._skor_sifirla)
+        self.btn_yeni.clicked.connect(self._yeni)
+        self.btn_tekrar.clicked.connect(self._tekrar)
+        self.btn_durak.clicked.connect(lambda: self.makam and self._cal([self.makam.durak]))
+        self.combo_makam.currentIndexChanged.connect(self._makam_degisti)
+        self.combo_kip.currentIndexChanged.connect(self._kip_degisti)
+        self.combo_sira.currentIndexChanged.connect(self._kip_degisti)
+        self.combo_tol.currentIndexChanged.connect(lambda: self.gosterge.kur(self.gosterge.sapma, self._tolerans()))
+        self.gosterge.kur(None, self._tolerans())
+        self._makam_degisti()
+
+    def makam_listesini_guncelle(self, liste):
+        secili = self.combo_makam.currentText()
+        self.combo_makam.blockSignals(True)
+        self.combo_makam.clear()
+        self.combo_makam.addItems(liste)
+        i = self.combo_makam.findText(secili)
+        if i >= 0:
+            self.combo_makam.setCurrentIndex(i)
+        self.combo_makam.blockSignals(False)
+        if self.combo_makam.currentText() != secili:
+            self._makam_degisti()
+
+    def _isim(self, prd):
+        try:
+            ad = str(self.naz.perdeden_isme(prd)).strip()
+        except Exception:
+            return prd
+        return ad[:1].upper() + ad[1:]
+
+    def _tolerans(self):
+        return float(self.combo_tol.currentIndex() + 1)
+
+    def _kip(self):
+        return self.combo_kip.currentIndex()
+
+    def _skor_sifirla(self):
+        self.dogru = self.toplam = 0
+        self.lbl_skor.setText('Skor: 0 / 0')
+
+    def _sifirdan(self, mesaj):
+        self._sonlandir()
+        self.hedef = None
+        self.lbl_soru.setText('')
+        self.lbl_ayrinti.setText(mesaj)
+        self.lbl_geri.setText('')
+        self.gosterge.kur(None)
+        self._butonlari_boya()
+
+    def _makam_degisti(self):
+        isim = self.combo_makam.currentText()
+        if not isim:
+            return
+        try:
+            self.makam = Makam(isim=isim, nazariyat=self.naz)
+        except Exception as e:
+            self.makam = None
+            self._sifirdan(f'Makam kurulamadı: {e}')
+            return
+        self._perde_butonlarini_kur()
+        self.sira_no = -1
+        self.secili = self.makam.perdeler[0]
+        self._kip_degisti()
+
+    def _kip_degisti(self):
+        izah = {
+            0: 'Durak çalınır, adı yazılan perdeyi söylersiniz; mikrofon ölçer.',
+            1: 'Durak ve bir perde çalınır; hangi perde olduğunu düğmeyle seçersiniz.',
+            2: 'Durak ve bir perde çalınır; duyduğunuzu söylersiniz; mikrofon ölçer.',
+        }[self._kip()]
+        self._sifirdan(izah + '  Başlamak için Yeni.')
+
+    def _perde_butonlarini_kur(self):
+        while self.perde_grid.count():
+            w = self.perde_grid.takeAt(0).widget()
+            if w:
+                w.deleteLater()
+        self.perde_butonlari = []
+        for i, prd in enumerate(self.makam.perdeler):
+            b = buton(self._isim(prd), C_PNL3, C_TXT, 'kucuk')
+            b.setMinimumHeight(36)
+            b.clicked.connect(lambda _=False, p=prd: self._perde_tik(p))
+            self.perde_grid.addWidget(b, *divmod(i, 6))
+            self.perde_butonlari.append((prd, b))
+
+    def _butonlari_boya(self, yesil=(), kirmizi=(), altin=()):
+        for prd, b in self.perde_butonlari:
+            css = buton('').styleSheet()
+            if prd in yesil:
+                css += f"QPushButton{{background:{C_GREEN};color:#000;}}"
+            elif prd in kirmizi:
+                css += f"QPushButton{{background:{C_RED};color:#fff;}}"
+            elif prd in altin:
+                css += f"QPushButton{{border:2px solid {C_GOLD};color:{C_GOLD};}}"
+            b.setStyleSheet(css)
+
+    def _ayni(self, a, b):
+        return self.naz.mutlak_koma(a) == self.naz.mutlak_koma(b)
+
+    def _cal(self, perdeler):
+        self._stop.set()
+        self._stop = threading.Event()
+        dur = self._stop
+        self._dinleme_ara()
+        self.talim._stop_cal()
+        ney = self._ney_getir() if self.combo_ses.currentIndex() == 1 else None
+        meclis = self.talim.meclis if ney is None else None
+        ens = self.talim._enstruman_getir() if meclis else None
+
+        def is_():
+            for prd in perdeler:
+                if dur.is_set() or (meclis is None and ney is None):
+                    break
+                try:
+                    if ney is not None:
+                        ney.bas('solfej', perde_midi(self.naz.isimden_perdeye(prd) if ',' not in prd else prd,
+                                                     nazariyat=self.naz))
+                        dur.wait(0.9)
+                        ney.birak('solfej')
+                    else:
+                        seslendir(prd, duration=0.9, session=meclis,
+                                  instrument=ens, nazariyat=self.naz)
+                except Exception as e:
+                    print(f"Solfej çalma hatası: {e}")
+                time.sleep(0.15)
+            if ney is not None and dur.is_set():
+                ney.sus()
+            if not dur.is_set():
+                self.calma_bitti.emit()
+
+        threading.Thread(target=is_, daemon=True).start()
+
+    def _ney_getir(self):
+        if self.ney is None:
+            try:
+                from ney import CanliNey
+                self.ney = CanliNey()
+                self.ney.ac()
+            except Exception as e:
+                self.ney = None
+                self.lbl_ayrinti.setText(f'Ney sentezi açılamadı: {e}')
+        return self.ney
+
+    def _ney_kapat(self):
+        if self.ney is not None:
+            self.ney.kapat()
+            self.ney = None
+
+    def _yeni(self, ayni=False):
+        if not self.makam:
+            return
+        self._sonlandir()
+        perdeler = list(self.makam.perdeler)
+        sira = self.combo_sira.currentIndex()
+        if ayni and self.hedef:
+            pass
+        elif sira == 0:
+            self.sira_no = (self.sira_no + 1) % len(perdeler)
+            self.hedef = perdeler[self.sira_no]
+        elif sira == 1:
+            self.hedef = self.secili
+        else:
+            self.hedef = random.choice([p for p in perdeler if p != self.hedef] or perdeler)
+        self.cevaplandi = False
+        self.lbl_geri.setText('')
+        self.gosterge.kur(None)
+        if self._kip() == 0:
+            self._butonlari_boya(altin=(self.hedef,))
+            self.lbl_soru.setText(f'Söyle: {self._isim(self.hedef)}')
+            self.lbl_ayrinti.setText('Evvelâ durak çalınıyor…')
+            self._cal([self.makam.durak])
+        else:
+            self._butonlari_boya()
+            self.lbl_soru.setText('Dinleyin…')
+            self.lbl_ayrinti.setText('Durak, ardından sorulan perde.')
+            self._cal([self.makam.durak, self.hedef])
+
+    def _tekrar(self):
+        if not self.hedef:
+            return
+        if self._kip() == 0 and not self.cevaplandi:
+            self._cal([self.makam.durak])
+        else:
+            self._cal([self.makam.durak, self.hedef])
+
+    def _perde_tik(self, prd):
+        if self._kip() == 1 and not self.cevaplandi and self.hedef:
+            self._tani_hukmet(prd)
+            return
+        if self.combo_sira.currentIndex() == 1 and self.cevaplandi:
+            self.secili = prd
+            self.lbl_ayrinti.setText(f'Sabit perde: {self._isim(prd)}.  Yeni ile başlayın.')
+            self._butonlari_boya(altin=(prd,))
+        self._cal([prd])
+
+    def _calma_bitince(self):
+        if self.cevaplandi or not self.hedef:
+            return
+        if self._kip() == 1:
+            self.lbl_soru.setText('Hangi perde?')
+            self.lbl_ayrinti.setText('Perde düğmesine basın.')
+            return
+        if self._kip() == 2:
+            self.lbl_soru.setText('Duyduğunuzu söyleyin')
+        self.lbl_ayrinti.setText('Dinliyorum… sesi sabit tutun.')
+        self._dinle()
+
+    def _skor_yaz(self, isabet):
+        self._tekrar_sor = not isabet and self.chk_tekrar.isChecked()
+        if self._tekrar_sor or self.combo_sira.currentIndex() == 0:
+            self.gecis.start(1500 if isabet else 3000)
+        self.toplam += 1
+        self.dogru += int(isabet)
+        self.lbl_skor.setText(f'Skor: {self.dogru} / {self.toplam}')
+
+    def _geri_yaz(self, metin, isabet):
+        self.lbl_geri.setText(metin)
+        renk = C_GREEN if isabet else C_RED
+        self.lbl_geri.setStyleSheet(f"color:{renk};font-size:15px;font-weight:bold;background:transparent;border:none;")
+
+    def _tani_hukmet(self, secim):
+        self.cevaplandi = True
+        isabet = self._ayni(secim, self.hedef)
+        self._skor_yaz(isabet)
+        self._butonlari_boya(yesil=(self.hedef,), kirmizi=() if isabet else (secim,))
+        ad = self._isim(self.hedef)
+        self.lbl_soru.setText(ad)
+        if isabet:
+            self._geri_yaz(f'✓  Doğru — {ad}', True)
+        else:
+            fark = self.naz.mutlak_koma(secim) - self.naz.mutlak_koma(self.hedef)
+            yon = 'tiz' if fark > 0 else 'pes'
+            self._geri_yaz(f'✗  Çalınan {ad}; seçtiğiniz {self._isim(secim)} ondan {abs(fark)} koma {yon}', False)
+        self.lbl_ayrinti.setText('Perdelere basıp dinleyebilirsiniz.')
+
+    def _dinle(self):
+        self.olcumler = []
+        self.ham = []
+        self.sessiz = 0
+        if self.dinleyici is None:
+            try:
+                from akort import DinleyiciIplik
+            except Exception as e:
+                self.lbl_ayrinti.setText(f'Mikrofon aracı yüklenemedi: {e}')
+                return
+            self.dinleyici = DinleyiciIplik()
+            self.dinleyici.olcum.connect(self._olcum)
+            self.dinleyici.hata.connect(self._mik_hata)
+            self.dinleyici.start()
+        self._dinle_basi = time.time()
+        self.dinliyor = True
+        self.zaman.start(self.ZAMAN_ASIMI)
+
+    def _dinleme_ara(self):
+        self.dinliyor = False
+        self.zaman.stop()
+
+    def _dinlemeyi_kes(self):
+        self._dinleme_ara()
+        if self.dinleyici is not None:
+            self.dinleyici.durdur()
+            self.dinleyici.wait(1500)
+            self.dinleyici = None
+
+    def _sonlandir(self):
+        self.gecis.stop()
+        self._stop.set()
+        self._dinlemeyi_kes()
+        self.cevaplandi = True
+
+    def _mik_hata(self, mesaj):
+        self.lbl_ayrinti.setText(mesaj)
+        self._dinlemeyi_kes()
+
+    def _zaman_asti(self):
+        if not self.dinliyor:
+            return
+        self._dinlemeyi_kes()
+        self.gosterge.kur(None)
+        self.lbl_ayrinti.setText('Sabit ses alınamadı. Tekrar Dinle ile yeniden deneyin.')
+
+    @staticmethod
+    def _koma(frekans):
+        return (69 + 12 * math.log2(frekans / 440.0) - 55) * 53 / 12
+
+    def _sapma(self, koma):
+        d = koma - self.naz.mutlak_koma(self.hedef)
+        return d - 53 * round(d / 53)
+
+    def _en_yakin(self, koma):
+        def uzaklik(p):
+            d = self.naz.mutlak_koma(p) - koma
+            return abs(d - 53 * round(d / 53))
+        yakin = min(self.makam.perdeler, key=uzaklik)
+        return yakin, uzaklik(yakin)
+
+    def _olcum(self, frekans, rms, netlik):
+        if not self.dinliyor or time.time() - self._dinle_basi < 0.35:
+            return
+        from akort import NETLIK_ESIGI
+        if frekans <= 0.0 or netlik < NETLIK_ESIGI:
+            self.sessiz += 1
+            if self.sessiz > 6:
+                self.olcumler.clear()
+                self.ham.clear()
+                self.gosterge.kur(None)
+            return
+        self.sessiz = 0
+        self.ham.append(self._koma(frekans))
+        if len(self.ham) < 3:
+            return
+        koma = statistics.median(self.ham[-5:])
+        sapma = self._sapma(koma)
+        self.olcumler.append(sapma)
+        self.gosterge.kur(sapma)
+        yakin, uzak = self._en_yakin(koma)
+        self.lbl_ayrinti.setText(f'Duyulan: {frekans:.0f} Hz, {self._isim(yakin)} '
+                                 f'{"civarı" if uzak > 1.5 else ""}'.rstrip())
+        son = self.olcumler[-self.SABIT_OLCUM:]
+        if len(son) >= self.SABIT_OLCUM and max(son) - min(son) < self.SABIT_YAYILIM:
+            self._ses_hukmet(statistics.median(son))
+
+    def _ses_hukmet(self, sapma):
+        self._dinlemeyi_kes()
+        self.cevaplandi = True
+        tol = self._tolerans()
+        isabet = abs(sapma) <= tol
+        self._skor_yaz(isabet)
+        self.gosterge.kur(sapma)
+        ad = self._isim(self.hedef)
+        self.lbl_soru.setText(ad)
+        yon = 'tiz' if sapma > 0 else 'pes'
+        if isabet:
+            self._geri_yaz(f'✓  {ad} — sapma {sapma:+.1f} koma', True)
+        else:
+            self._geri_yaz(f'✗  {ad} istendi; {abs(sapma):.1f} koma {yon} söylendi', False)
+        yakin, uzak = self._en_yakin(self.naz.mutlak_koma(self.hedef) + sapma)
+        if not isabet and not self._ayni(yakin, self.hedef) and uzak <= tol:
+            self.lbl_ayrinti.setText(f'Söylediğiniz {self._isim(yakin)} perdesine yakın.')
+            self._butonlari_boya(yesil=(self.hedef,), kirmizi=(yakin,))
+        else:
+            self.lbl_ayrinti.setText('Perdelere basıp dinleyebilirsiniz.')
+            self._butonlari_boya(yesil=(self.hedef,))
+
+    def hideEvent(self, e):
+        self.gecis.stop()
+        self._stop.set()
+        self._ney_kapat()
+        if self.dinliyor or self.dinleyici is not None:
+            self._dinlemeyi_kes()
+            if not self.cevaplandi:
+                self.lbl_ayrinti.setText('Dinleme durdu. Tekrar Dinle ile sürdürün.')
+        super().hideEvent(e)
 
 
 class TalimSekmesi(QWidget):
@@ -1078,7 +1621,7 @@ class TalimSekmesi(QWidget):
             if self._stop.is_set():
                 return
             try:
-                seslendir(prd, duration=sure, session=self.meclis,
+                ney_cal(prd, duration=sure, session=self.meclis,
                           instrument=ens, nazariyat=self.naz)
             except Exception as e:
                 print(f"Talim çalma hatası: {e}")
@@ -1198,7 +1741,7 @@ class TalimSekmesi(QWidget):
             self.lbl_talim_nota.setText(nota + koma_str)
             self.lbl_talim_perde.setText(isim)
             try:
-                seslendir(prd, duration=sure, session=self.meclis,
+                ney_cal(prd, duration=sure, session=self.meclis,
                           instrument=ens, nazariyat=self.naz)
             except Exception as e:
                 print(f"Talim çalma hatası: {e}")
@@ -1220,7 +1763,7 @@ class FiltrePaneli(QWidget):
         self.naz = naz
         self.setFixedWidth(260)
         self.setStyleSheet(f"background:{C_PNL};")
-        self._tum_makamlar = naz.dizi['isim'].tolist()
+        self._tum_makamlar = naz.makam_sirasi()
         self._kurulum()
         self._filtrele()
 
@@ -1299,7 +1842,8 @@ class FiltrePaneli(QWidget):
         if al_sec != '(Tümü)': maske &= dz['alt'].str.startswith(al_sec)
         if us_sec != '(Tümü)': maske &= dz['üst'].str.startswith(us_sec)
 
-        filtreli = dz.loc[maske, 'isim'].tolist()
+        uyan = set(dz.loc[maske, 'isim'])
+        filtreli = [m for m in self._tum_makamlar if m in uyan]
 
         if arama_txt:
             filtreli = [m for m in filtreli if arama_txt in m.lower()]
@@ -1387,7 +1931,7 @@ class AnaPencere(QMainWindow):
         bb_lay.addWidget(btn_klavye)
         sag_lay.addWidget(baslik_bar)
 
-        tum_makamlar = self.naz.dizi['isim'].tolist()
+        tum_makamlar = self.naz.makam_sirasi()
 
         self.sekmeler = QTabWidget()
         self.sekmeler.setStyleSheet(f"""
@@ -1405,7 +1949,9 @@ class AnaPencere(QMainWindow):
 
         self.sekmeler.addTab(self.analiz,   '🔍 Analiz')
         self.sekmeler.addTab(self.mukayese, '⚖  Mukayese')
+        self.solfej    = SolfejSekmesi(self.talim, tum_makamlar)
         self.sekmeler.addTab(self.talim,    '🎓 Talim')
+        self.sekmeler.addTab(self.solfej,   '🎤 Solfej')
         sag_lay.addWidget(self.sekmeler, stretch=1)
 
         splitter.addWidget(sag)
@@ -1474,6 +2020,7 @@ class AnaPencere(QMainWindow):
     def _filtre_guncelle(self, liste):
         self.mukayese.makam_listesini_guncelle(liste)
         self.talim.makam_listesini_guncelle(liste)
+        self.solfej.makam_listesini_guncelle(liste)
 
 
 if __name__ == '__main__':
